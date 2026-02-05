@@ -1,27 +1,17 @@
 import React, { useState } from 'react';
 import GoogleSheetsList from './GoogleSheetsList';
 import ConnectSheetModal from './ConnectSheetModal';
-import ManualSendModal from './ManualSendModal';
-import SheetDetailView from './SheetDetailView';
-import TriggerManager from './TriggerManager';
-import { GoogleSheet } from '@/services/googleSheetsService';
+import { GoogleSheet } from '@/services/googleSheetService';
 
-type View = 'list' | 'detail' | 'triggers';
+type View = 'list';
 
 const GoogleSheetsIntegration: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('list');
   const [selectedSheet, setSelectedSheet] = useState<GoogleSheet | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
-  const [showManualSendModal, setShowManualSendModal] = useState(false);
 
   const handleSheetSelect = (sheet: GoogleSheet) => {
     setSelectedSheet(sheet);
-    setCurrentView('detail');
-  };
-
-  const handleBackToList = () => {
-    setSelectedSheet(null);
-    setCurrentView('list');
   };
 
   const handleConnectNew = () => {
@@ -34,45 +24,14 @@ const GoogleSheetsIntegration: React.FC = () => {
     setShowConnectModal(false);
   };
 
-  const handleManualSend = () => {
-    setShowManualSendModal(true);
-  };
-
-  const handleManageTriggers = () => {
-    setCurrentView('triggers');
-  };
 
   const renderCurrentView = () => {
-    switch (currentView) {
-      case 'list':
-        return (
-          <GoogleSheetsList
-            onSheetSelect={handleSheetSelect}
-            onConnectNew={handleConnectNew}
-          />
-        );
-      
-      case 'detail':
-        return selectedSheet ? (
-          <SheetDetailView
-            sheet={selectedSheet}
-            onBack={handleBackToList}
-            onManualSend={handleManualSend}
-            onManageTriggers={handleManageTriggers}
-          />
-        ) : null;
-      
-      case 'triggers':
-        return selectedSheet ? (
-          <TriggerManager
-            sheet={selectedSheet}
-            onBack={handleBackToList}
-          />
-        ) : null;
-      
-      default:
-        return null;
-    }
+    return (
+      <GoogleSheetsList
+        onSheetSelect={handleSheetSelect}
+        onConnectNew={handleConnectNew}
+      />
+    );
   };
 
   return (
@@ -104,13 +63,6 @@ const GoogleSheetsIntegration: React.FC = () => {
           onSheetConnected={handleSheetConnected}
         />
 
-        {selectedSheet && (
-          <ManualSendModal
-            isOpen={showManualSendModal}
-            onClose={() => setShowManualSendModal(false)}
-            sheet={selectedSheet}
-          />
-        )}
       </div>
     </div>
   );

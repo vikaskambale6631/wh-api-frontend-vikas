@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { googleSheetsService, GoogleSheet } from '@/services/googleSheetsService';
+import { googleSheetService, GoogleSheet } from '@/services/googleSheetService';
 
 interface GoogleSheetsListProps {
   onSheetSelect: (sheet: GoogleSheet) => void;
@@ -18,7 +18,7 @@ const GoogleSheetsList: React.FC<GoogleSheetsListProps> = ({ onSheetSelect, onCo
   const fetchSheets = async () => {
     try {
       setLoading(true);
-      const data = await googleSheetsService.getSheets();
+      const data = await googleSheetService.listSheets();
       setSheets(data);
       setError(null);
     } catch (err) {
@@ -94,7 +94,7 @@ const GoogleSheetsList: React.FC<GoogleSheetsListProps> = ({ onSheetSelect, onCo
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {sheets.map((sheet) => (
             <div
-              key={sheet.sheet_id}
+              key={sheet.id}
               className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => onSheetSelect(sheet)}
             >
@@ -111,7 +111,7 @@ const GoogleSheetsList: React.FC<GoogleSheetsListProps> = ({ onSheetSelect, onCo
                 <div className="space-y-2 text-sm text-gray-600">
                   <div className="flex justify-between">
                     <span>Rows:</span>
-                    <span className="font-medium">{sheet.rows_count.toLocaleString()}</span>
+                    <span className="font-medium">{sheet.total_rows.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Connected:</span>

@@ -327,8 +327,8 @@ export default function GoogleSheetOfficialMessagingPage() {
                                     </td>
                                     <td className="p-4">
                                         <Badge className={
-                                            sheet.status === 'active' ? 'bg-green-100 text-green-800' :
-                                            sheet.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                                            sheet.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                                            sheet.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-800' :
                                             'bg-red-100 text-red-800'
                                         }>
                                             {sheet.status}
@@ -421,7 +421,7 @@ export default function GoogleSheetOfficialMessagingPage() {
                                 <SelectContent>
                                     {devices.map((device) => (
                                         <SelectItem key={device.device_id} value={device.device_id}>
-                                            {device.device_name} ({device.phone_number})
+                                            {device.device_name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

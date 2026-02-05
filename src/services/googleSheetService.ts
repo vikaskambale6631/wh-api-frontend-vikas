@@ -86,6 +86,7 @@ export interface GoogleSheet {
     status: 'ACTIVE' | 'PAUSED' | 'ERROR';
     total_rows: number;
     connected_at: string; // ISO datetime string
+    last_synced_at?: string; // ISO datetime string or null
     trigger_enabled: boolean;
     trigger_config?: any;
     user_id?: string | null; // UUID serialized as string or null

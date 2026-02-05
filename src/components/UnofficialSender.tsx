@@ -41,10 +41,8 @@ export default function UnofficialSender({ userId }: { userId: string }) {
                         targetDeviceId = devices[0].device_id;
                     }
 
-                    // 3. Simulate Connection (since we are in test mode)
-                    await deviceService.simulateConnection(targetDeviceId, userId);
-
-                    // 4. Retry Sending Message
+                    // 3. Use the device directly (simulation not needed)
+                    // 4. Send Message
                     await deviceService.sendMessage(userId, receiver, message);
 
                     setStatus({ type: 'success', text: 'Device connected & Message sent!' });
