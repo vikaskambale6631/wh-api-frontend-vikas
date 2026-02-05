@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -14,7 +14,9 @@ import {
     FileText,
     ChevronDown,
     X,
-    LogOut
+    LogOut,
+    CreditCard,
+    ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +29,14 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
     const pathname = usePathname();
     const router = useRouter(); // Added hook
     const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const storedId = localStorage.getItem('reseller_id') || localStorage.getItem('user_id');
+            if (storedId && storedId !== 'undefined') setUserId(storedId);
+        }
+    }, []);
 
     const toggleSubmenu = (label: string) => {
         if (collapsed) return;
@@ -40,7 +50,20 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
     // ... menuItems definitions (unchanged) ...
     const menuItems = [
         { label: "HOME", icon: LayoutGrid, href: "/dashboard/user", color: "text-blue-500" },
-        { label: "INTEGRATION", icon: Plug, href: "/dashboard/user/integration", hasSubmenu: false, color: "text-purple-500" },
+        { label: "CREDITS", icon: CreditCard, href: "/dashboard/user/credits", color: "text-amber-500" },
+        { label: "DEVICES", icon: Plug, href: "/dashboard/user/devices", hasSubmenu: false, color: "text-purple-500" },
+        {
+            label: "Official Configuration",
+            icon: ShieldCheck,
+            href: "#",
+            hasSubmenu: true,
+            color: "text-green-600",
+            submenu: [
+                { label: "Configuration", href: "/dashboard/user/official-whatsapp?tab=config" },
+                { label: "Templates", href: "/dashboard/user/official-whatsapp?tab=templates" },
+                { label: "Webhook Logs", href: "/dashboard/user/official-whatsapp?tab=logs" }
+            ]
+        },
         {
             label: "MESSAGE",
             icon: MessageSquare,
@@ -48,8 +71,8 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
             hasSubmenu: true,
             color: "text-green-500",
             submenu: [
-                { label: "Single", href: "/dashboard/user/message/single" },
-                { label: "Multiple", href: "/dashboard/user/message/multiple" }
+                { label: "Send Official Message", href: "/dashboard/user/official-message" },
+                { label: "Send Unofficial Message", href: "/dashboard/user/message" }
             ]
         },
         { label: "TEMPLATE", icon: Layout, href: "/dashboard/user/templates", color: "text-pink-500" },
@@ -71,8 +94,7 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
             hasSubmenu: true,
             color: "text-yellow-500",
             submenu: [
-                { label: "Manager", href: "/dashboard/user/groups/manager" },
-                { label: "Groups Messaging", href: "/dashboard/user/groups/messaging" },
+                { label: "Manage Groups", href: "/dashboard/user/groups/manager" },
                 { label: "Broadcast", href: "/dashboard/user/groups/broadcast" }
             ]
         },
@@ -99,7 +121,7 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
         >
             <div className="p-6 flex-1 overflow-y-auto hide-scrollbar"> {/* Added flex-1 and overflow to scroll content, hide scrollbar utility might be needed or standard overflow */}
                 <div className={cn("flex items-center mb-8 transition-all", collapsed ? "justify-center" : "gap-3")}>
-                    <div className="relative w-8 h-8 flex-shrink-0">
+                    <div className="relative w-8 h-8 shrink-0">
                         <img
                             src="/logo.png"
                             alt="Logo"
@@ -184,11 +206,11 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
             <div className="p-4 border-t border-slate-800 bg-slate-900">
                 {!collapsed ? (
                     <div className="space-y-4">
-                        <Link href="/profile" className="flex items-center gap-3 px-2 hover:bg-slate-800 rounded-md p-2 transition-colors cursor-pointer text-white">
+                        <Link href="/dashboard/user/profile" className="flex items-center gap-3 px-2 hover:bg-slate-800 rounded-md p-2 transition-colors cursor-pointer text-white">
                             <div className="h-9 w-9 bg-slate-700 rounded-full flex items-center justify-center text-sm font-medium">U</div>
                             <div className="flex-1 overflow-hidden">
                                 <p className="text-sm font-medium truncate">User</p>
-                                <p className="text-xs text-slate-400 truncate">ID: d1e0c262c9...</p>
+                                <p className="text-xs text-slate-400 truncate">ID: {userId || "..."}</p>
                             </div>
                         </Link>
                         <button
@@ -201,7 +223,7 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-4">
-                        <Link href="/profile">
+                        <Link href="/dashboard/user/profile">
                             <div className="h-8 w-8 bg-slate-700 rounded-full flex items-center justify-center text-xs font-medium cursor-pointer hover:opacity-80">U</div>
                         </Link>
                         <button

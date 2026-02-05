@@ -1,18 +1,40 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import DashboardLayout from "@/components/layout/DashboardLayout"
 import { ProfileHeader, ProfileStats, InfoSection, InfoField, AccountPlanCard, SecurityCard } from "@/components/profile/ProfileComponents"
+import { BusinessProfile } from "@/services/businessService"
 
 export default function ProfilePage() {
+    const [profileData, setProfileData] = useState<BusinessProfile | null>(null)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        // Load profile data here
+        // For now, set null to avoid TypeScript error
+        setProfileData(null)
+        setLoading(false)
+    }, [])
+
+    if (loading) {
+        return (
+            <DashboardLayout>
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                </div>
+            </DashboardLayout>
+        )
+    }
+
     return (
         <DashboardLayout>
             <div className="space-y-8 max-w-7xl mx-auto">
 
                 {/* Header Section */}
-                <ProfileHeader />
+                <ProfileHeader data={profileData} />
 
                 {/* Stats Row */}
-                <ProfileStats />
+                <ProfileStats data={profileData} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Main Info Column */}
@@ -41,7 +63,7 @@ export default function ProfilePage() {
 
                     {/* Side Column */}
                     <div className="space-y-6">
-                        <AccountPlanCard />
+                        <AccountPlanCard data={profileData} />
                         <SecurityCard />
                     </div>
                 </div>

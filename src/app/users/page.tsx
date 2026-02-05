@@ -2,9 +2,9 @@
 
 import Link from "next/link"
 import DashboardLayout from "@/components/layout/DashboardLayout"
-import { Users, Wifi, WifiOff, Clock, Search, Eye, Edit2, Trash2, Plus } from "lucide-react"
+import { Users, Wifi, WifiOff, Clock, Search, Eye, Edit2, Trash2, Plus, Loader2, Coins } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
     Sheet,
     SheetContent,
@@ -15,89 +15,21 @@ import {
     SheetFooter,
     SheetClose
 } from "@/components/ui/sheet"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-
-// Initial Mock Data
-const initialUsers = [
-    {
-        id: 1,
-        name: "Akshay Patil",
-        email: "rsl.jayashree1803@gmail.com",
-        joined: "05-01-2026",
-        company: "SPMO",
-        gstin: "No GSTIN",
-        mobile: "8999796824",
-        pincode: "No pincode",
-        plan: "DEMO",
-        credits: { remaining: 21, total: 30 },
-        status: "Active"
-    },
-    {
-        id: 2,
-        name: "Akshay Patil",
-        email: "rsl.jayashree1803@gmail.com",
-        joined: "05-01-2026",
-        company: "SPMO",
-        gstin: "No GSTIN",
-        mobile: "9284829121",
-        pincode: "No pincode",
-        plan: "DEMO",
-        credits: { remaining: 30, total: 30 },
-        status: "Inactive"
-    },
-    {
-        id: 3,
-        name: "Akshay",
-        email: "akshaypatil951997@gmail.com",
-        joined: "30-12-2025",
-        company: "N/A",
-        gstin: "No GSTIN",
-        mobile: "9284820259",
-        pincode: "No pincode",
-        plan: "DEMO",
-        credits: { remaining: 29, total: 30 },
-        status: "Active"
-    },
-    {
-        id: 4,
-        name: "Bhagyashri P",
-        email: "rsl.bhagyashrip@gmail.com",
-        joined: "09-10-2025",
-        company: "Sindhumatri",
-        gstin: "No GSTIN",
-        mobile: "9284822114",
-        pincode: "No pincode",
-        plan: "DEMO",
-        credits: { remaining: 30, total: 30 },
-        status: "Active"
-    },
-    {
-        id: 5,
-        name: "Akshay Patil",
-        email: "rsl.bhagayshrip@gmail.com",
-        joined: "09-10-2025",
-        company: "Sindhumatri",
-        gstin: "No GSTIN",
-        mobile: "9604253122",
-        pincode: "411033",
-        plan: "DEMO",
-        credits: { remaining: 30, total: 30 },
-        status: "Inactive"
-    },
-    {
-        id: 6,
-        name: "Akshay",
-        email: "asp799159@gmail.com",
-        joined: "08-10-2025",
-        company: "Akshay Enterprises",
-        gstin: "No GSTIN",
-        mobile: "9404185751",
-        pincode: "411033",
-        plan: "DEMO",
-        credits: { remaining: 30, total: 30 },
-        status: "Active"
-    }
-]
+import userService, { BusinessUser, UserAnalytics } from "@/services/userService"
+import resellerService from "@/services/resellerService"
+import { useRouter } from "next/navigation"
+import CreditDistributionComponent from "@/components/reseller/CreditDistributionComponent"
+import ViewUserModal from "@/components/reseller/UserViewModal"
+import EditUserModal from "@/components/reseller/UserEditModal"
+import DeleteUserModal from "@/components/reseller/UserDeleteModal"
 
 function AnalyticsCard({ title, value, icon: Icon, colorClass, iconColorClass }: any) {
     return (
@@ -114,86 +46,104 @@ function AnalyticsCard({ title, value, icon: Icon, colorClass, iconColorClass }:
 }
 
 export default function UsersPage() {
+    const router = useRouter()
     const [searchQuery, setSearchQuery] = useState("")
-    const [users, setUsers] = useState(initialUsers)
-    const [isSheetOpen, setIsSheetOpen] = useState(false)
-    const [editingUserId, setEditingUserId] = useState<number | null>(null)
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        mobile: "",
-        company: ""
+    const [users, setUsers] = useState<BusinessUser[]>([])
+    const [analytics, setAnalytics] = useState<UserAnalytics>({
+        total_users: 0,
+        active_users: 0,
+        inactive_users: 0,
+        plan_expired_users: 0
     })
+    const [isLoading, setIsLoading] = useState(true)
+    const [isEditOpen, setIsEditOpen] = useState(false)
+    const [editingUser, setEditingUser] = useState<BusinessUser | null>(null)
+    const [resellerId, setResellerId] = useState<string | null>(null)
+
+    // View & Delete Modal States
+    const [isViewOpen, setIsViewOpen] = useState(false)
+    const [viewUser, setViewUser] = useState<BusinessUser | null>(null)
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+    const [deleteUser, setDeleteUser] = useState<BusinessUser | null>(null)
+
+    const [isCreditSheetOpen, setIsCreditSheetOpen] = useState(false)
+    const [creditUser, setCreditUser] = useState<{ id: string, name: string, business_name: string } | null>(null)
+
+    const fetchData = async () => {
+        setIsLoading(true)
+        try {
+            const token = localStorage.getItem("token")
+            if (!token) {
+                router.push("/login")
+                return
+            }
+
+            // Get Reseller ID
+            const profile = await resellerService.getProfile(token)
+            if (profile && profile.user_id) {
+                setResellerId(profile.user_id)
+            }
+
+            const [usersData, analyticsData] = await Promise.all([
+                userService.getMyUsers(token),
+                userService.getAnalytics(token)
+            ])
+            setUsers(usersData)
+            setAnalytics(analyticsData)
+
+        } catch (error) {
+            console.error("Failed to fetch data:", error)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchData()
+    }, [])
 
     const filteredUsers = users.filter(user => {
         const query = searchQuery.toLowerCase()
         return (
-            user.name.toLowerCase().includes(query) ||
-            user.email.toLowerCase().includes(query) ||
-            user.company.toLowerCase().includes(query) ||
-            user.mobile.includes(query)
+            user.profile.name.toLowerCase().includes(query) ||
+            user.profile.email.toLowerCase().includes(query) ||
+            user.business.business_name.toLowerCase().includes(query) ||
+            user.profile.phone.includes(query)
         )
     })
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target
-        setFormData(prev => ({ ...prev, [name]: value }))
+    const openViewUser = (user: BusinessUser) => {
+        setViewUser(user)
+        setIsViewOpen(true)
     }
 
-    const openAddUser = () => {
-        setEditingUserId(null)
-        setFormData({ name: "", email: "", mobile: "", company: "" })
-        setIsSheetOpen(true)
+    const openEditUser = (user: BusinessUser) => {
+        setEditingUser(user)
+        setIsEditOpen(true)
     }
 
-    const openEditUser = (user: typeof users[0]) => {
-        setEditingUserId(user.id)
-        setFormData({
-            name: user.name,
-            email: user.email,
-            mobile: user.mobile,
-            company: user.company
+    const openDeleteUser = (user: BusinessUser) => {
+        setDeleteUser(user)
+        setIsDeleteOpen(true)
+    }
+
+    const openCreditDist = (user: BusinessUser) => {
+        setCreditUser({
+            id: user.busi_user_id,
+            name: user.profile.name,
+            business_name: user.business.business_name
         })
-        setIsSheetOpen(true)
+        setIsCreditSheetOpen(true)
     }
 
-    const handleDeleteUser = (id: number) => {
-        if (confirm("Are you sure you want to delete this user?")) {
-            setUsers(prev => prev.filter(user => user.id !== id))
-        }
-    }
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-
-        if (editingUserId) {
-            // Edit Mode
-            setUsers(prev => prev.map(user =>
-                user.id === editingUserId
-                    ? { ...user, ...formData }
-                    : user
-            ))
-        } else {
-            // Add Mode
-            const userToAdd = {
-                id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
-                name: formData.name,
-                email: formData.email,
-                joined: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'),
-                company: formData.company,
-                gstin: "No GSTIN",
-                mobile: formData.mobile,
-                pincode: "No pincode",
-                plan: "DEMO",
-                credits: { remaining: 30, total: 30 },
-                status: "Active"
-            }
-            setUsers([userToAdd, ...users])
-        }
-
-        setIsSheetOpen(false)
-        setFormData({ name: "", email: "", mobile: "", company: "" })
-        setEditingUserId(null)
+    if (isLoading) {
+        return (
+            <DashboardLayout>
+                <div className="flex items-center justify-center min-h-screen">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                </div>
+            </DashboardLayout>
+        )
     }
 
     return (
@@ -209,81 +159,46 @@ export default function UsersPage() {
                         <p className="text-gray-500 mt-1">Manage and monitor all your users</p>
                     </div>
 
-                    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                        <SheetTrigger asChild>
-                            <Button
-                                onClick={openAddUser}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add New User
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent className="sm:max-w-md">
-                            <SheetHeader>
-                                <SheetTitle>{editingUserId ? "Edit User" : "Add New User"}</SheetTitle>
-                                <SheetDescription>
-                                    {editingUserId ? "Update user details below." : "Add a new user to your organization."}
-                                </SheetDescription>
-                            </SheetHeader>
-                            <form onSubmit={handleSubmit} className="space-y-6 py-6">
-                                <div className="space-y-2">
-                                    <label htmlFor="name" className="text-sm font-medium">Full Name</label>
-                                    <Input
-                                        id="name"
-                                        name="name"
-                                        placeholder="John Doe"
-                                        required
-                                        value={formData.name}
-                                        onChange={handleInputChange}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="email" className="text-sm font-medium">Email Address</label>
-                                    <Input
-                                        id="email"
-                                        name="email"
-                                        type="email"
-                                        placeholder="john@example.com"
-                                        required
-                                        value={formData.email}
-                                        onChange={handleInputChange}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="mobile" className="text-sm font-medium">Mobile Number</label>
-                                    <Input
-                                        id="mobile"
-                                        name="mobile"
-                                        placeholder="+91 98765 43210"
-                                        required
-                                        value={formData.mobile}
-                                        onChange={handleInputChange}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="company" className="text-sm font-medium">Company Name</label>
-                                    <Input
-                                        id="company"
-                                        name="company"
-                                        placeholder="Acme Inc."
-                                        required
-                                        value={formData.company}
-                                        onChange={handleInputChange}
-                                    />
-                                </div>
+                    <Link href="/dashboard/reseller/create-business">
+                        <Button className="bg-blue-600 hover:bg-blue-700">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add New User
+                        </Button>
+                    </Link>
 
-                                <SheetFooter>
-                                    <SheetClose asChild>
-                                        <Button variant="outline" type="button">Cancel</Button>
-                                    </SheetClose>
-                                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                                        {editingUserId ? "Save Changes" : "Add User"}
-                                    </Button>
-                                </SheetFooter>
-                            </form>
-                        </SheetContent>
-                    </Sheet>
+                    <ViewUserModal
+                        user={viewUser}
+                        open={isViewOpen}
+                        onOpenChange={setIsViewOpen}
+                    />
+
+                    <EditUserModal
+                        user={editingUser}
+                        open={isEditOpen}
+                        onOpenChange={setIsEditOpen}
+                        onSuccess={fetchData}
+                    />
+
+                    <DeleteUserModal
+                        user={deleteUser}
+                        open={isDeleteOpen}
+                        onOpenChange={setIsDeleteOpen}
+                        onSuccess={fetchData}
+                    />
+
+                    <Dialog open={isCreditSheetOpen} onOpenChange={setIsCreditSheetOpen}>
+                        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto p-0">
+                            <DialogHeader className="p-6 pb-2">
+                                <DialogTitle>Credit Distribution</DialogTitle>
+                                <DialogDescription>
+                                    Distribute credits to your business users.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="px-6 pb-6">
+                                <CreditDistributionComponent preSelectedUser={creditUser} />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
 
                 {/* Analytics */}
@@ -295,28 +210,28 @@ export default function UsersPage() {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <AnalyticsCard
                             title="TOTAL USERS"
-                            value={users.length}
+                            value={analytics.total_users}
                             icon={Users}
                             colorClass="bg-blue-500"
                             iconColorClass="bg-blue-600"
                         />
                         <AnalyticsCard
                             title="CONNECTED"
-                            value={users.filter(u => u.status === 'Active').length}
+                            value={analytics.active_users}
                             icon={Wifi}
                             colorClass="bg-green-500"
                             iconColorClass="bg-green-600"
                         />
                         <AnalyticsCard
                             title="DISCONNECTED"
-                            value={users.filter(u => u.status === 'Inactive').length}
+                            value={analytics.inactive_users}
                             icon={WifiOff}
                             colorClass="bg-red-500"
                             iconColorClass="bg-red-600"
                         />
                         <AnalyticsCard
                             title="PLAN EXPIRED"
-                            value="10"
+                            value={analytics.plan_expired_users}
                             icon={Clock}
                             colorClass="bg-orange-500"
                             iconColorClass="bg-orange-600"
@@ -347,7 +262,6 @@ export default function UsersPage() {
                                     <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">COMPANY</th>
                                     <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">CONTACT</th>
                                     <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">PLAN</th>
-                                    <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">CREDITS</th>
                                     <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">STATUS</th>
                                     <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs text-right">ACTIONS</th>
                                 </tr>
@@ -355,49 +269,54 @@ export default function UsersPage() {
                             <tbody className="divide-y">
                                 {filteredUsers.length > 0 ? (
                                     filteredUsers.map((user) => (
-                                        <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                                        <tr key={user.busi_user_id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4">
-                                                <div className="font-medium text-gray-900">{user.name}</div>
-                                                <div className="text-gray-500 text-xs">{user.email}</div>
-                                                <div className="text-gray-400 text-xs mt-0.5">Joined: {user.joined}</div>
+                                                <div className="font-medium text-gray-900">{user.profile.name}</div>
+                                                <div className="text-gray-500 text-xs">{user.profile.email}</div>
+                                                <div className="text-gray-400 text-xs mt-0.5">Joined: {new Date(user.created_at).toLocaleDateString()}</div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="font-medium text-gray-900">{user.company}</div>
-                                                <div className="text-gray-500 text-xs">{user.gstin}</div>
+                                                <div className="font-medium text-gray-900">{user.business.business_name}</div>
+                                                <div className="text-gray-500 text-xs">{user.business.gstin || "No GSTIN"}</div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="font-medium text-gray-900">{user.mobile}</div>
-                                                <div className="text-gray-500 text-xs">{user.pincode}</div>
+                                                <div className="font-medium text-gray-900">{user.profile.phone}</div>
+                                                <div className="text-gray-500 text-xs">{user.address?.pincode || "No Pincode"}</div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
                                                     <svg className="mr-1.5 h-3 w-3 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                                     </svg>
-                                                    {user.plan}
+                                                    DEMO
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-gray-900">
-                                                <div className="font-bold">{user.credits.remaining} / {user.credits.total}</div>
-                                                <div className="text-xs text-gray-500">Remaining / Total</div>
-                                            </td>
                                             <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.status === 'Active'
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.status === 'active'
                                                     ? 'bg-green-100 text-green-800'
                                                     : 'bg-red-100 text-red-800'
                                                     }`}>
-                                                    <span className={`h-1.5 w-1.5 rounded-full mr-1.5 ${user.status === 'Active' ? 'bg-green-600' : 'bg-red-600'
+                                                    <span className={`h-1.5 w-1.5 rounded-full mr-1.5 ${user.status === 'active' ? 'bg-green-600' : 'bg-red-600'
                                                         }`}></span>
                                                     {user.status}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <Link href={`/users/${user.id}`}>
-                                                        <button className="p-1 text-blue-600 hover:bg-blue-50 rounded">
-                                                            <Eye className="h-4 w-4" />
-                                                        </button>
-                                                    </Link>
+                                                    <button
+                                                        onClick={() => openCreditDist(user)}
+                                                        className="p-1 text-purple-600 hover:bg-purple-50 rounded"
+                                                        title="Distribute Credits"
+                                                    >
+                                                        <Coins className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openViewUser(user)}
+                                                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                                        title="View Details"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
                                                     <button
                                                         onClick={() => openEditUser(user)}
                                                         className="p-1 text-green-600 hover:bg-green-50 rounded"
@@ -405,8 +324,9 @@ export default function UsersPage() {
                                                         <Edit2 className="h-4 w-4" />
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDeleteUser(user.id)}
+                                                        onClick={() => openDeleteUser(user)}
                                                         className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                                        title="Delete User"
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </button>

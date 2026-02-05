@@ -1,5 +1,4 @@
-"use client"
-
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
@@ -8,12 +7,12 @@ import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 const sidebarItems = [
-    { icon: LayoutGrid, label: "Dashboard", href: "/dashboard", color: "text-blue-600" },
-    { icon: Code, label: "API", href: "/api", color: "text-emerald-500" },
-    { icon: ShoppingCart, label: "My Orders", href: "/orders", color: "text-indigo-600" },
-    { icon: CreditCard, label: "Plans", href: "/plans", color: "text-pink-600" },
-    { icon: Users, label: "Users", href: "/users", color: "text-teal-600" },
-    { icon: History, label: "Activity History", href: "/history", color: "text-cyan-600" },
+    { icon: LayoutGrid, label: "Dashboard", href: "/dashboard/reseller/analytics", color: "text-blue-600" },
+    { icon: Code, label: "API", href: "/dashboard/reseller/api", color: "text-emerald-500" }, // Assuming API is also under reseller path now, or keep as /api if global
+    { icon: ShoppingCart, label: "My Orders", href: "/dashboard/reseller/orders", color: "text-indigo-600" },
+    { icon: CreditCard, label: "Plans", href: "/dashboard/reseller/plans", color: "text-pink-600" },
+    { icon: Users, label: "Users", href: "/dashboard/reseller/users", color: "text-teal-600" },
+    { icon: History, label: "Activity History", href: "/dashboard/reseller/history", color: "text-cyan-600" },
 ]
 
 interface SidebarProps {
@@ -23,7 +22,15 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, toggleSidebar }: SidebarProps) {
     const pathname = usePathname()
-    const router = useRouter() // Added hook
+    const router = useRouter()
+    const [userId, setUserId] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const storedId = localStorage.getItem("reseller_id") || localStorage.getItem("user_id");
+            if (storedId && storedId !== 'undefined') setUserId(storedId);
+        }
+    }, [])
 
     const handleSignOut = () => {
         router.push("/login")
@@ -36,7 +43,7 @@ export function Sidebar({ collapsed, toggleSidebar }: SidebarProps) {
                 collapsed ? "w-16" : "w-64"
             )}
         >
-            {/* ... Header section remains same ... */}
+            {/* Header section... */}
             <div className="p-4 border-b flex items-center justify-between h-[65px]">
                 {!collapsed && (
                     <div className="flex items-center gap-2">
@@ -84,18 +91,12 @@ export function Sidebar({ collapsed, toggleSidebar }: SidebarProps) {
 
             <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
                 {sidebarItems.map((item) => {
-                    // Logic fixed: If it's the Admin Sidebar, Dashboard always goes to /dashboard/admin
-                    let href = item.href
-                    if (item.href === "/dashboard") {
-                        href = "/dashboard/admin"
-                    }
-
-                    const isActive = pathname === href || (item.href === "/dashboard" && pathname === href)
+                    const isActive = pathname === item.href
 
                     return (
                         <Link
                             key={item.label}
-                            href={href}
+                            href={item.href}
                             className={cn(
                                 "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors group",
                                 isActive
@@ -115,13 +116,13 @@ export function Sidebar({ collapsed, toggleSidebar }: SidebarProps) {
             <div className="p-4 border-t space-y-4">
                 {!collapsed ? (
                     <>
-                        <Link href="/profile" className="flex items-center gap-3 px-2 hover:bg-gray-50 rounded-md p-1 transition-colors cursor-pointer">
+                        <Link href="/dashboard/reseller/profile" className="flex items-center gap-3 px-2 hover:bg-gray-50 rounded-md p-1 transition-colors cursor-pointer">
                             <Avatar className="h-9 w-9 bg-gray-200">
                                 <AvatarFallback>User</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 overflow-hidden">
                                 <p className="text-sm font-medium truncate text-gray-900">User</p>
-                                <p className="text-xs text-gray-500 truncate">ID: d1e0c262c9...</p>
+                                <p className="text-xs text-gray-500 truncate">ID: {userId || "..."}</p>
                             </div>
                         </Link>
                         <button
@@ -134,7 +135,7 @@ export function Sidebar({ collapsed, toggleSidebar }: SidebarProps) {
                     </>
                 ) : (
                     <div className="flex flex-col items-center gap-4">
-                        <Link href="/profile">
+                        <Link href="/dashboard/reseller/profile">
                             <Avatar className="h-8 w-8 bg-gray-200 cursor-pointer hover:opacity-80">
                                 <AvatarFallback>U</AvatarFallback>
                             </Avatar>
