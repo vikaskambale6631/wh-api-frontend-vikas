@@ -64,7 +64,7 @@ export default function BroadcastPage() {
                 {/* Table */}
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-800 text-xs font-semibold tracking-wider uppercase border-b border-indigo-100">
+                        <thead className="bg-linear-to-r from-indigo-50 to-purple-50 text-indigo-800 text-xs font-semibold tracking-wider uppercase border-b border-indigo-100">
                             <tr>
                                 <th className="p-4 w-10">
                                     <input type="checkbox" className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer" />

@@ -3,7 +3,7 @@
  * Communicates with the integrated WhatsApp engine
  */
 
-const WHATSAPP_ENGINE_URL = process.env.NEXT_PUBLIC_WHATSAPP_ENGINE_URL || 'http://localhost:3002';
+import { WHATSAPP_ENGINE_URL } from '@/config/api';
 
 class WhatsAppService {
   constructor() {

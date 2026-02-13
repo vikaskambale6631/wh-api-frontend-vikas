@@ -111,7 +111,7 @@ export default function DeliveryReportsPage() {
                         </div>
                     ) : (
                         <table className="w-full text-left border-collapse">
-                            <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-800 text-xs font-semibold tracking-wider uppercase border-b border-indigo-100">
+                            <thead className="bg-linear-to-r from-blue-50 to-indigo-50 text-blue-800 text-xs font-semibold tracking-wider uppercase border-b border-indigo-100">
                                 <tr>
                                     <th className="p-4 w-10">
                                         <input type="checkbox" className="rounded border-indigo-200 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />

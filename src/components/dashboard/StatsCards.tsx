@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 export function StatsCards() {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none shadow-md relative overflow-hidden">
+            <Card className="bg-linear-to-br from-blue-500 to-blue-600 text-white border-none shadow-md relative overflow-hidden">
                 <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                         <div>
@@ -20,7 +20,7 @@ export function StatsCards() {
                 <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-xl" />
             </Card>
 
-            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none shadow-md relative overflow-hidden">
+            <Card className="bg-linear-to-br from-purple-500 to-purple-600 text-white border-none shadow-md relative overflow-hidden">
                 <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                         <div>
@@ -35,7 +35,7 @@ export function StatsCards() {
                 <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-xl" />
             </Card>
 
-            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-none shadow-md relative overflow-hidden">
+            <Card className="bg-linear-to-br from-green-500 to-green-600 text-white border-none shadow-md relative overflow-hidden">
                 <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                         <div>
@@ -50,7 +50,7 @@ export function StatsCards() {
                 <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-xl" />
             </Card>
 
-            <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-none shadow-md relative overflow-hidden">
+            <Card className="bg-linear-to-br from-orange-500 to-orange-600 text-white border-none shadow-md relative overflow-hidden">
                 <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                         <div>

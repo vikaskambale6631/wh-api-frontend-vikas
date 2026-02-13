@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
 
-const API_URL = 'http://localhost:8000/api/resellers';
+const API_URL = `${API_BASE_URL}/resellers`;
 
 // interface for Reseller data types
 export interface ResellerProfile {
@@ -81,8 +82,8 @@ const resellerService = {
     changePassword: async (token: string, data: any) => {
         // Calling /api/auth/change-password endpoint
         // Since API_URL is /api/resellers, we need to construct the URL correctly.
-        // The backend is at http://localhost:8000
-        const AUTH_API_URL = 'http://localhost:8000/api/auth';
+        // The backend uses API_BASE_URL
+        const AUTH_API_URL = `${API_BASE_URL}/auth`;
         const response = await axios.post(`${AUTH_API_URL}/change-password`, data, {
             headers: { Authorization: `Bearer ${token}` },
             withCredentials: true

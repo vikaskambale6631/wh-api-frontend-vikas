@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
 
-const API_URL = 'http://localhost:8000/api/user';
+const API_URL = `${API_BASE_URL}/user`;
 
 export const userDashboardService = {
     getDevices: async (token: string) => {
@@ -16,7 +17,7 @@ export const userDashboardService = {
 
             if (userId) {
                 // Use our improved sync endpoint
-                const syncResponse = await axios.get(`http://localhost:8000/sync-devices/${userId}`);
+                const syncResponse = await axios.get(`${API_BASE_URL.replace('/api', '')}/sync-devices/${userId}`);
                 if (syncResponse.status === 200 && Array.isArray(syncResponse.data)) {
                     // Filter for connected devices
                     const connectedDevices = syncResponse.data.filter((device: any) =>

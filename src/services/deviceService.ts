@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = API_BASE_URL.replace('/api', '');
 
 export interface Device {
     device_id: string; // UUID serialized as string

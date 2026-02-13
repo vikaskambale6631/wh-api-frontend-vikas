@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
 
 // Ensure this matches your backend URL.
 // IMPORTANT: If you are running physically on a device, localhost won't work.
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = API_BASE_URL;
 
 // Helper to get headers with token
 const getAuthHeaders = () => {

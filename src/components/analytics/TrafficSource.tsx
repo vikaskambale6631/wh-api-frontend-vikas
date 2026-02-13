@@ -36,7 +36,7 @@ export default function TrafficSource({ data, loading }: TrafficSourceProps) {
             <CardContent>
                 <div className="flex items-center justify-between">
                     {/* Left Side: Chart */}
-                    <div className="relative h-[160px] w-[160px] flex-shrink-0">
+                    <div className="relative h-[160px] w-[160px] shrink-0">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie

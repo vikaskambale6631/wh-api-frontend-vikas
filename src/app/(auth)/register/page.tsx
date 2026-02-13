@@ -114,7 +114,7 @@ export default function RegisterPage() {
 
                 {error && (
                     <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg flex items-center gap-2 text-sm">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <AlertCircle className="w-4 h-4 shrink-0" />
                         <p className="font-medium">{error}</p>
                     </div>
                 )}
@@ -305,7 +305,7 @@ export default function RegisterPage() {
                                             type="text"
                                             name="country"
                                             placeholder="Country"
-                                            className="input-field-compact !pl-4"
+                                            className="input-field-compact pl-4!"
                                             value={formData.address?.country}
                                             onChange={handleAddressChange}
                                         />
@@ -316,7 +316,7 @@ export default function RegisterPage() {
                                             type="text"
                                             name="pincode"
                                             placeholder="Pin"
-                                            className="input-field-compact !pl-4"
+                                            className="input-field-compact pl-4!"
                                             value={formData.address?.pincode}
                                             onChange={handleAddressChange}
                                         />

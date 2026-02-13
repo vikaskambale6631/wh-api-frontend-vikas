@@ -49,7 +49,7 @@ export default function GroupsManagerPage() {
 
     useEffect(() => {
         // Filter groups based on search term
-        const filtered = groups.filter(group => 
+        const filtered = groups.filter(group =>
             group.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
         setFilteredGroups(filtered);
@@ -80,12 +80,15 @@ export default function GroupsManagerPage() {
         try {
             const token = localStorage.getItem("access_token") || localStorage.getItem("token");
             if (token) {
-                await groupService.createGroup(token, newGroupName, newGroupDesc);
+                const newGroup = await groupService.createGroup(token, newGroupName, newGroupDesc);
                 setStatus({ type: 'success', text: "Group created successfully!" });
                 setIsCreateModalOpen(false);
                 setNewGroupName("");
                 setNewGroupDesc("");
-                fetchGroups();
+
+                // CRITICAL: Refresh groups immediately and set selected group
+                await fetchGroups();
+                setSelectedGroup(newGroup);
             }
         } catch (error) {
             console.error("Create group error", error);
@@ -134,7 +137,16 @@ export default function GroupsManagerPage() {
     };
 
     const validateAndSave = async (contactsToSave: ContactItem[], isBatch: boolean) => {
-        if (!selectedGroup) return;
+        if (!selectedGroup) {
+            alert("No group selected. Please select a group first.");
+            return;
+        }
+
+        // CRITICAL: Validate group exists before adding contacts
+        if (!groups.find(g => g.group_id === selectedGroup.group_id)) {
+            alert("Group not found. Please refresh the groups list.");
+            return;
+        }
 
         // Validation
         const validContacts = contactsToSave.filter(c => c.phone.trim() !== "");
@@ -180,9 +192,16 @@ export default function GroupsManagerPage() {
                     setNewContactRows([]);
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Add contacts error", error);
-            alert("Failed to add contacts. Check inputs.");
+
+            // Handle specific 404 errors for missing groups
+            if (error.response?.status === 404) {
+                alert("Group not found or was deleted. Please refresh the groups list.");
+                fetchGroups(); // Refresh to update state
+            } else {
+                alert("Failed to add contacts. Check inputs.");
+            }
         } finally {
             setIsSaving(false);
         }
@@ -207,7 +226,15 @@ export default function GroupsManagerPage() {
                 const response = await groupService.deleteGroup(token, group.group_id);
                 if (response.success) {
                     setStatus({ type: 'success', text: `Group "${group.name}" deleted successfully!` });
-                    fetchGroups(); // Refresh the list
+
+                    // CRITICAL: Update state immediately to prevent FK errors
+                    setGroups(prev => prev.filter(g => g.group_id !== group.group_id));
+                    if (selectedGroup?.group_id === group.group_id) {
+                        setSelectedGroup(null);
+                    }
+
+                    // Optional: Refresh to ensure sync
+                    fetchGroups();
                 } else {
                     setStatus({ type: 'error', text: response.message || "Failed to delete group." });
                 }

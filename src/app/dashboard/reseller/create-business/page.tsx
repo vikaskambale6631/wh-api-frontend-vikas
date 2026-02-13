@@ -124,7 +124,7 @@ export default function CreateBusinessPage() {
 
                     {error && (
                         <div className="mx-8 mt-8 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl flex items-center gap-2">
-                            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                            <AlertCircle className="w-5 h-5 shrink-0" />
                             <p className="text-sm font-medium">{error}</p>
                         </div>
                     )}

@@ -57,7 +57,7 @@ export default function UserDetailsPage({ params }: { params: { id: string } }) 
     const Field = ({ label, value, className = "" }: { label: string, value: React.ReactNode, className?: string }) => (
         <div className={className}>
             <p className="text-xs uppercase text-gray-500 font-semibold mb-1">{label}</p>
-            <div className="text-sm text-gray-900 font-medium break-words">{value}</div>
+            <div className="text-sm text-gray-900 font-medium wrap-break-word">{value}</div>
         </div>
     )
 

@@ -1,17 +1,18 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL_CONFIG = API_BASE_URL;
 
 // Google Sheets API service
 export const googleSheetsService = {
   // Sheet Management
   async getSheets() {
-    const response = await axios.get(`${API_BASE_URL}/google-sheets/`);
+    const response = await axios.get(`${API_BASE_URL_CONFIG}/google-sheets/`);
     return response.data;
   },
 
   async getSheet(sheetId: string) {
-    const response = await axios.get(`${API_BASE_URL}/google-sheets/${sheetId}`);
+    const response = await axios.get(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}`);
     return response.data;
   },
 
@@ -19,7 +20,7 @@ export const googleSheetsService = {
     sheet_name: string;
     spreadsheet_id: string;
   }) {
-    const response = await axios.post(`${API_BASE_URL}/google-sheets/connect`, sheetData);
+    const response = await axios.post(`${API_BASE_URL_CONFIG}/google-sheets/connect`, sheetData);
     return response.data;
   },
 
@@ -27,12 +28,12 @@ export const googleSheetsService = {
     sheet_name: string;
     spreadsheet_id: string;
   }) {
-    const response = await axios.put(`${API_BASE_URL}/google-sheets/${sheetId}`, sheetData);
+    const response = await axios.put(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}`, sheetData);
     return response.data;
   },
 
   async deleteSheet(sheetId: string) {
-    const response = await axios.delete(`${API_BASE_URL}/google-sheets/${sheetId}`);
+    const response = await axios.delete(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}`);
     return response.data;
   },
 
@@ -41,12 +42,12 @@ export const googleSheetsService = {
     start_row?: number;
     end_row?: number;
   }) {
-    const response = await axios.get(`${API_BASE_URL}/google-sheets/${sheetId}/rows`, { params });
+    const response = await axios.get(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/rows`, { params });
     return response.data;
   },
 
   async syncSheet(sheetId: string) {
-    const response = await axios.post(`${API_BASE_URL}/google-sheets/${sheetId}/sync`);
+    const response = await axios.post(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/sync`);
     return response.data;
   },
 
@@ -65,7 +66,7 @@ export const googleSheetsService = {
     console.log('   Sheet ID:', sheetId);
     console.log('   Send Data:', JSON.stringify(sendData, null, 2));
     
-    const response = await axios.post(`${API_BASE_URL}/google-sheets/${sheetId}/manual-send`, sendData, {
+    const response = await axios.post(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/manual-send`, sendData, {
       timeout: 30000  // 30 seconds timeout
     });
     return response.data;
@@ -89,7 +90,7 @@ export const googleSheetsService = {
     console.log('   Mode:', sendData.mode);
     console.log('   Send Data:', JSON.stringify(sendData, null, 2));
     
-    const response = await axios.post(`${API_BASE_URL}/google-sheets/${sheetId}/messaging`, sendData, {
+    const response = await axios.post(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/messaging`, sendData, {
       timeout: 30000
     });
     return response.data;
@@ -110,7 +111,7 @@ export const googleSheetsService = {
     console.log('   Sheet ID:', sheetId);
     console.log('   Template:', sendData.template_name);
     
-    const response = await axios.post(`${API_BASE_URL}/google-sheets/${sheetId}/official-template-send`, sendData, {
+    const response = await axios.post(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/official-template-send`, sendData, {
       timeout: 30000
     });
     return response.data;
@@ -118,7 +119,7 @@ export const googleSheetsService = {
 
   // Trigger Management - Official WhatsApp API only
   async getTriggers(sheetId: string) {
-    const response = await axios.get(`${API_BASE_URL}/google-sheets/${sheetId}/triggers`);
+    const response = await axios.get(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/triggers`);
     return response.data;
   },
 
@@ -134,7 +135,7 @@ export const googleSheetsService = {
     execution_interval?: number;
     schedule_column?: string;
   }) {
-    const response = await axios.post(`${API_BASE_URL}/google-sheets/${sheetId}/triggers`, triggerData);
+    const response = await axios.post(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/triggers`, triggerData);
     return response.data;
   },
 
@@ -154,7 +155,7 @@ export const googleSheetsService = {
     schedule_column?: string;
     execution_interval?: number;
   }) {
-    const response = await axios.post(`${API_BASE_URL}/google-sheets/${sheetId}/official-template-triggers`, triggerData);
+    const response = await axios.post(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/official-template-triggers`, triggerData);
     return response.data;
   },
 
@@ -162,12 +163,12 @@ export const googleSheetsService = {
     trigger_type?: string;
     is_enabled?: boolean;
   }) {
-    const response = await axios.put(`${API_BASE_URL}/google-sheets/triggers/${triggerId}`, triggerData);
+    const response = await axios.put(`${API_BASE_URL_CONFIG}/google-sheets/triggers/${triggerId}`, triggerData);
     return response.data;
   },
 
   async deleteTrigger(triggerId: string) {
-    const response = await axios.delete(`${API_BASE_URL}/google-sheets/triggers/${triggerId}`);
+    const response = await axios.delete(`${API_BASE_URL_CONFIG}/google-sheets/triggers/${triggerId}`);
     return response.data;
   },
 
@@ -176,7 +177,7 @@ export const googleSheetsService = {
     page?: number;
     per_page?: number;
   }) {
-    const response = await axios.get(`${API_BASE_URL}/google-sheets/${sheetId}/history`, { params });
+    const response = await axios.get(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/history`, { params });
     return response.data;
   },
 
@@ -184,24 +185,24 @@ export const googleSheetsService = {
     page?: number;
     per_page?: number;
   }) {
-    const response = await axios.get(`${API_BASE_URL}/google-sheets/triggers/${triggerId}/history`, { params });
+    const response = await axios.get(`${API_BASE_URL_CONFIG}/google-sheets/triggers/${triggerId}/history`, { params });
     return response.data;
   },
 
   async getSheetStats(sheetId: string) {
-    const response = await axios.get(`${API_BASE_URL}/google-sheets/${sheetId}/stats`);
+    const response = await axios.get(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/stats`);
     return response.data;
   },
 
   // Official WhatsApp Config
   async getOfficialConfigStatus() {
-    const response = await axios.get(`${API_BASE_URL}/google-sheets/official-config/status`);
+    const response = await axios.get(`${API_BASE_URL_CONFIG}/google-sheets/official-config/status`);
     return response.data;
   },
 
   // Templates
   async getSheetTemplates(sheetId: string) {
-    const response = await axios.get(`${API_BASE_URL}/google-sheets/${sheetId}/templates`);
+    const response = await axios.get(`${API_BASE_URL_CONFIG}/google-sheets/${sheetId}/templates`);
     return response.data;
   },
 };

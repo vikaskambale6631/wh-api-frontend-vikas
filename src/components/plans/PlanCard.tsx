@@ -48,7 +48,7 @@ export function PlanCard({ plan }: PlanCardProps) {
                             <Crown className={cn("h-8 w-8", plan.popular ? "text-blue-600" : "text-gray-500")} />
                         )}
                     </div>
-                    <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">
+                    <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-linear-to-r from-gray-900 to-gray-600">
                         {plan.name}
                     </CardTitle>
                     <p className="text-3xl font-extrabold text-gray-900 mt-2">

@@ -109,7 +109,7 @@ export default function ResellerDashboard() {
                     <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-100">
                         <div className="p-5">
                             <div className="flex items-center">
-                                <div className="flex-shrink-0">
+                                <div className="shrink-0">
                                     <div className="bg-blue-100 rounded-md p-3">
                                         <Wallet className="h-6 w-6 text-blue-600" />
                                     </div>
@@ -130,7 +130,7 @@ export default function ResellerDashboard() {
                     <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-100">
                         <div className="p-5">
                             <div className="flex items-center">
-                                <div className="flex-shrink-0">
+                                <div className="shrink-0">
                                     <div className="bg-green-100 rounded-md p-3">
                                         <CreditCard className="h-6 w-6 text-green-600" />
                                     </div>
@@ -151,7 +151,7 @@ export default function ResellerDashboard() {
                     <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-100">
                         <div className="p-5">
                             <div className="flex items-center">
-                                <div className="flex-shrink-0">
+                                <div className="shrink-0">
                                     <div className="bg-red-100 rounded-md p-3">
                                         <Users className="h-6 w-6 text-red-600" />
                                     </div>

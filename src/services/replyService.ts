@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
 
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = API_BASE_URL;
 
 // Helper to get headers
 const getAuthHeaders = () => {
@@ -18,6 +19,7 @@ export interface InboxMessage {
     id: string;
     device_id: string;
     phone_number: string;
+    contact_name?: string;  // Contact name from WhatsApp
     incoming_message: string;
     incoming_time: string;
     is_replied: boolean;
@@ -35,9 +37,15 @@ export const replyService = {
         return response.data.data || response.data;
     },
 
-    sendReply: async (messageId: string, text: string) => {
-        const response = await axios.post(`${API_URL}/replies/send`,
-            { message_id: messageId, reply_text: text },
+    sendReply: async (messageId: string, phone: string, deviceId: string, text: string) => {
+        const response = await axios.post(
+            `${API_URL}/replies/send`,
+            {
+                message_id: messageId,
+                phone: phone,
+                device_id: deviceId,
+                reply_text: text
+            },
             { headers: getAuthHeaders() }
         );
         return response.data;

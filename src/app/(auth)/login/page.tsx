@@ -74,7 +74,7 @@ function LoginPageContent() {
         <div className="w-full max-w-[440px] flex flex-col items-center">
             {/* Header Outside Card */}
             <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/20">
+                <div className="w-16 h-16 bg-linear-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/20">
                     <Lock className="w-8 h-8 text-white" />
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
@@ -113,13 +113,13 @@ function LoginPageContent() {
 
                 {error && (
                     <div className="mb-6 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl flex items-center gap-2">
-                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        <AlertCircle className="w-5 h-5 shrink-0" />
                         <p className="text-sm font-medium">{error}</p>
                     </div>
                 )}
                 {successMessage && (
                     <div className="mb-6 bg-green-50 border border-green-100 text-green-600 px-4 py-3 rounded-xl flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                        <CheckCircle className="w-5 h-5 shrink-0" />
                         <p className="text-sm font-medium">{successMessage}</p>
                     </div>
                 )}
@@ -205,7 +205,7 @@ function LoginPageContent() {
 export default function LoginPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-blue-50 to-indigo-100">
+            <div className="min-h-screen flex items-center justify-center bg-linear-to-tr from-blue-50 to-indigo-100">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         }>

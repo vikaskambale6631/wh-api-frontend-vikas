@@ -10,6 +10,7 @@ import { userDashboardService } from "@/services/userDashboardService";
 import groupService, { Group } from "@/services/groupService";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { API_BASE_URL } from "@/config/api";
 
 // Animation Variants
 const containerVariants = {
@@ -64,7 +65,7 @@ export default function UnofficialMessagePage() {
 
         try {
             // 1. Check Device Status - 🔥 FIXED: Use unofficial/connected endpoint for STRICT filtering
-            const response = await fetch(`http://localhost:8000/api/devices/unofficial/connected?user_id=${currentUserId}`);
+            const response = await fetch(`${API_BASE_URL}/devices/unofficial/connected?user_id=${currentUserId}`);
             const data = await response.json();
             
             // 🔥 STRICT FILTER: Only show devices that backend confirms are CONNECTED
@@ -104,7 +105,7 @@ export default function UnofficialMessagePage() {
 
         try {
             // Force refresh by calling the sync endpoint directly
-            await fetch(`http://localhost:8000/sync-devices/${userId}`);
+            await fetch(`${API_BASE_URL.replace('/api', '')}/sync-devices/${userId}`);
 
             // Then check device status again
             await checkDeviceAndLoadGroups(userId);
@@ -169,7 +170,7 @@ export default function UnofficialMessagePage() {
                 throw new Error("User ID not found. Please refresh the page.");
             }
             
-            const response = await fetch(`http://localhost:8000/api/devices/unofficial/connected?user_id=${userId}`);
+            const response = await fetch(`${API_BASE_URL}/devices/unofficial/connected?user_id=${userId}`);
             const data = await response.json();
             const connectedDevices = data.devices || [];
             const connectedDevice = connectedDevices.find((d: any) =>

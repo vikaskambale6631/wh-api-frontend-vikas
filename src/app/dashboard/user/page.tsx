@@ -90,7 +90,7 @@ export default function UserDashboard() {
         {/* Status Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Remaining Credits (Primary) */}
-          <div className="md:col-span-2 bg-gradient-to-br from-violet-600 to-indigo-700 text-white p-6 rounded-3xl shadow-lg shadow-violet-600/20 relative overflow-hidden group">
+          <div className="md:col-span-2 bg-linear-to-br from-violet-600 to-indigo-700 text-white p-6 rounded-3xl shadow-lg shadow-violet-600/20 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
               <Wallet className="w-32 h-32" />
             </div>

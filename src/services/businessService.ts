@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/config/api';
 
-const API_URL = 'http://127.0.0.1:8000/api/busi_users'; // Base URL for business users
+const API_URL = `${API_BASE_URL}/busi_users`; // Base URL for business users
 
 export interface BusinessRegisterData {
     parent_reseller_id: string;
