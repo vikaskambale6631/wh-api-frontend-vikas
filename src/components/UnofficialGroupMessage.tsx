@@ -27,7 +27,7 @@ export default function UnofficialGroupMessage({ className = "" }: UnofficialGro
     useEffect(() => {
         const loadGroups = async () => {
             try {
-                const token = localStorage.getItem("access_token") || localStorage.getItem("token");
+                const token = localStorage.getItem("token") || localStorage.getItem("access_token");
                 if (token) {
                     const groups = await groupService.getGroups(token);
                     setAvailableGroups(groups);
@@ -62,7 +62,7 @@ export default function UnofficialGroupMessage({ className = "" }: UnofficialGro
         setIsSending(true);
 
         try {
-            const token = localStorage.getItem("access_token") || localStorage.getItem("token");
+            const token = localStorage.getItem("token") || localStorage.getItem("access_token");
             if (!token) {
                 setStatus({ type: 'error', text: "Authentication error. Please login again." });
                 setIsSending(false);
@@ -92,7 +92,7 @@ export default function UnofficialGroupMessage({ className = "" }: UnofficialGro
         <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden ${className}`}>
             <div className="p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Send Group Message</h2>
-                
+
                 <div className="space-y-6">
                     {/* Step 1: Select Groups */}
                     <div className="space-y-3">

@@ -37,7 +37,7 @@ export default function OfficialGroupMessage({ className = "" }: OfficialGroupMe
 
     const loadGroups = async () => {
         try {
-            const token = localStorage.getItem("access_token") || localStorage.getItem("token");
+            const token = localStorage.getItem("token") || localStorage.getItem("access_token");
             if (token) {
                 const groups = await groupService.getGroups(token);
                 setAvailableGroups(groups);
@@ -116,7 +116,7 @@ export default function OfficialGroupMessage({ className = "" }: OfficialGroupMe
         setIsSending(true);
 
         try {
-            const token = localStorage.getItem("access_token") || localStorage.getItem("token");
+            const token = localStorage.getItem("token") || localStorage.getItem("access_token");
             if (!token) {
                 setStatus({ type: 'error', text: "Authentication error. Please login again." });
                 setIsSending(false);
@@ -132,7 +132,7 @@ export default function OfficialGroupMessage({ className = "" }: OfficialGroupMe
                 try {
                     const contacts = await groupService.getGroupContacts(token, groupId);
                     totalContacts += contacts.length;
-                    
+
                     // Send to each contact in the group
                     for (const contact of contacts) {
                         try {
@@ -194,7 +194,7 @@ export default function OfficialGroupMessage({ className = "" }: OfficialGroupMe
                     <ShieldCheck className="w-6 h-6 text-green-600" />
                     <h2 className="text-xl font-bold text-gray-900">Send Official Message (Group)</h2>
                 </div>
-                
+
                 <div className="space-y-6">
                     {/* Message Type Toggle */}
                     <div className="grid grid-cols-2 gap-4">
@@ -336,11 +336,10 @@ export default function OfficialGroupMessage({ className = "" }: OfficialGroupMe
                         <button
                             onClick={handleSendOfficialGroupMessage}
                             disabled={isSending || selectedGroupIds.length === 0 || (messageType === "template" ? !selectedTemplate : !textMessage.trim())}
-                            className={`w-full py-3 rounded-lg font-medium shadow-md transition-all flex items-center justify-center gap-2 ${
-                                isSending || selectedGroupIds.length === 0 || (messageType === "template" ? !selectedTemplate : !textMessage.trim())
+                            className={`w-full py-3 rounded-lg font-medium shadow-md transition-all flex items-center justify-center gap-2 ${isSending || selectedGroupIds.length === 0 || (messageType === "template" ? !selectedTemplate : !textMessage.trim())
                                     ? 'bg-gray-300 cursor-not-allowed text-gray-500'
                                     : 'bg-green-600 hover:bg-green-700 text-white hover:shadow-lg'
-                            }`}
+                                }`}
                         >
                             {isSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                             <span>{isSending ? 'Sending...' : `Send ${messageType === 'text' ? 'Text' : 'Template'} Group Message`}</span>

@@ -58,7 +58,7 @@ export default function GroupsManagerPage() {
     const fetchGroups = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem("access_token") || localStorage.getItem("token");
+            const token = localStorage.getItem("token") || localStorage.getItem("access_token");
             if (token) {
                 const data = await groupService.getGroups(token);
                 setGroups(data);
@@ -78,7 +78,7 @@ export default function GroupsManagerPage() {
         }
         setIsCreating(true);
         try {
-            const token = localStorage.getItem("access_token") || localStorage.getItem("token");
+            const token = localStorage.getItem("token") || localStorage.getItem("access_token");
             if (token) {
                 const newGroup = await groupService.createGroup(token, newGroupName, newGroupDesc);
                 setStatus({ type: 'success', text: "Group created successfully!" });
@@ -107,7 +107,7 @@ export default function GroupsManagerPage() {
         setStatus(null);
 
         try {
-            const token = localStorage.getItem("access_token") || localStorage.getItem("token");
+            const token = localStorage.getItem("token") || localStorage.getItem("access_token");
             if (token) {
                 const contacts = await groupService.getGroupContacts(token, group.group_id);
                 setGroupContacts(contacts);
@@ -171,7 +171,7 @@ export default function GroupsManagerPage() {
 
         setIsSaving(true);
         try {
-            const token = localStorage.getItem("access_token") || localStorage.getItem("token");
+            const token = localStorage.getItem("token") || localStorage.getItem("access_token");
             if (token) {
                 await groupService.addContacts(token, selectedGroup.group_id, validContacts);
 
@@ -221,7 +221,7 @@ export default function GroupsManagerPage() {
         }
 
         try {
-            const token = localStorage.getItem("access_token") || localStorage.getItem("token");
+            const token = localStorage.getItem("token") || localStorage.getItem("access_token");
             if (token) {
                 const response = await groupService.deleteGroup(token, group.group_id);
                 if (response.success) {

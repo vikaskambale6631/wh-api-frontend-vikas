@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "node scripts/clean-start.js",
+    "dev:fresh": "node scripts/clean-start.js --clean",
+    "kill-port": "node scripts/clean-start.js --dry",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -15,7 +18,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
-        "axios": "^1.13.2",
+    "axios": "^1.13.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "concurrently": "^8.2.2",

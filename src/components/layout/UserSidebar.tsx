@@ -72,7 +72,8 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
             color: "text-green-500",
             submenu: [
                 { label: "Send Official Message", href: "/dashboard/user/official-message" },
-                { label: "Send Unofficial Message", href: "/dashboard/user/message" }
+                { label: "Send Unofficial Message", href: "/dashboard/user/message" },
+                { label: "Bulk Messaging", href: "/dashboard/user/bulk-messaging" }
             ]
         },
         { label: "TEMPLATE", icon: Layout, href: "/dashboard/user/templates", color: "text-pink-500" },

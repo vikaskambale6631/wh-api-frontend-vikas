@@ -124,6 +124,16 @@ export const deviceService = {
         }
     },
 
+    startDevice: async (deviceId: string) => {
+        try {
+            const response = await axios.post(`${API_URL}/api/devices/${deviceId}/start`);
+            return response.data;
+        } catch (error) {
+            console.error('Failed to start device session:', error);
+            throw error;
+        }
+    },
+
     getQRCode: async (deviceId: string, userId: string) => {
         try {
             const response = await axios.get(`${API_URL}/api/devices/${deviceId}/qr`);

@@ -94,6 +94,7 @@ export interface GoogleSheet {
     message_template?: string | null;
     created_at?: string | null; // ISO datetime string or null
     updated_at?: string | null; // ISO datetime string or null
+    available_sheets?: string[]; // Array of available sheet names
 }
 
 export interface TriggerHistory {
@@ -114,7 +115,7 @@ export const googleSheetService = {
         return response.data;
     },
 
-    connectSheet: async (data: { sheet_name: string, spreadsheet_id: string, worksheet_name: string }) => {
+    connectSheet: async (data: { sheet_name: string, spreadsheet_id: string, worksheet_name?: string }) => {
         const response = await api.post<GoogleSheet>('/google-sheets/connect', data);
         return response.data;
     },
@@ -124,8 +125,9 @@ export const googleSheetService = {
         return response.data;
     },
 
-    fetchRows: async (sheetId: string) => {
-        const response = await api.get<{ headers: string[], rows: any[] }>(`/google-sheets/${sheetId}/rows`);
+    fetchRows: async (sheetId: string, worksheetName?: string) => {
+        const params = worksheetName ? { worksheet_name: worksheetName } : {};
+        const response = await api.get<{ headers: string[], rows: any[] }>(`/google-sheets/${sheetId}/rows`, { params });
         return response.data;
     },
 
@@ -184,7 +186,7 @@ export const googleSheetService = {
         }
     },
 
-    manualSend: async (data: { 
+    manualSend: async (data: {
         template_name?: string;
         language_code?: string;
         phone_column: string;
@@ -262,9 +264,9 @@ export const googleSheetService = {
         return response.data;
     },
 
-    // ✅ NEW: Validate 24-hour session for text messages
-    validateTextSession: async (phoneNumbers: string[]) => {
-        const response = await api.post('/google-sheets/validate-text-session', phoneNumbers);
+    // ✅ NEW: Verify available worksheets for a connected sheet
+    getAvailableWorksheets: async (sheetId: string) => {
+        const response = await api.get<string[]>(`/google-sheets/${sheetId}/worksheets`);
         return response.data;
     }
 };

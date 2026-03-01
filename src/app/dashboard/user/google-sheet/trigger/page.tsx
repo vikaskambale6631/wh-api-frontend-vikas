@@ -6,33 +6,27 @@ import {
 } from "lucide-react";
 import { googleSheetService, GoogleSheet, TriggerHistory } from "@/services/googleSheetService";
 import { deviceService, Device } from "@/services/deviceService";
-
-interface Template {
-    id: string;
-    template_name: string;
-    category: string;
-    language: string;
-    status: string;
-}
+import { googleSheetUnofficialService } from "@/services/googleSheetUnofficialService";
 
 export default function OfficialTriggerPage() {
     const [sheets, setSheets] = useState<GoogleSheet[]>([]);
-    const [templates, setTemplates] = useState<Template[]>([]);
     const [history, setHistory] = useState<TriggerHistory[]>([]);
     const [loading, setLoading] = useState(true);
-    const [templatesLoading, setTemplatesLoading] = useState(false);
 
     const [selectedSheetId, setSelectedSheetId] = useState("");
     const [selectedSheet, setSelectedSheet] = useState<GoogleSheet | null>(null);
     const [columns, setColumns] = useState<string[]>([]);
+
+    // Unofficial API Requirements
+    const [devices, setDevices] = useState<Device[]>([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState("");
+
+    // Using string config instead of official template
     const [triggerConfig, setTriggerConfig] = useState({
         trigger_type: "update_row",
         is_enabled: true,
-        template_name: "",
-        language_code: "en_US",
+        text_message: "",
         phone_column: "",
-        header_param_columns: [] as string[],
-        body_param_columns: [] as string[],
         trigger_column: "",
         trigger_value: "",
         status_column: "Status"
@@ -41,6 +35,7 @@ export default function OfficialTriggerPage() {
 
     useEffect(() => {
         loadData();
+        loadDevices();
         fetchHistory();
 
         const interval = setInterval(() => {
@@ -50,18 +45,30 @@ export default function OfficialTriggerPage() {
         return () => clearInterval(interval);
     }, []);
 
+    const loadDevices = async () => {
+        try {
+            const userId = localStorage.getItem("user_id");
+            if (!userId) {
+                console.error("No user ID found in localStorage");
+                return;
+            }
+            const data = await deviceService.getDevices(userId);
+            setDevices(data);
+        } catch (error) {
+            console.error("Failed to load devices", error);
+        }
+    };
+
     useEffect(() => {
         if (selectedSheetId) {
             const sheet = sheets.find(s => s.id === selectedSheetId);
             setSelectedSheet(sheet || null);
             if (sheet) {
                 loadSheetColumns(sheet.id);
-                loadTemplates(sheet.id);
             }
         } else {
             setSelectedSheet(null);
             setColumns([]);
-            setTemplates([]);
         }
     }, [selectedSheetId, sheets]);
 
@@ -83,14 +90,14 @@ export default function OfficialTriggerPage() {
             const res = await googleSheetService.fetchRows(sheetId);
             if (res.headers) {
                 setColumns(res.headers);
-                
-                const phoneCol = res.headers.find((c: string) => 
+
+                const phoneCol = res.headers.find((c: string) =>
                     c.toLowerCase().includes('phone') || c.toLowerCase().includes('mobile')
                 );
-                const statusCol = res.headers.find((c: string) => 
+                const statusCol = res.headers.find((c: string) =>
                     c.toLowerCase().includes('status') || c.toLowerCase().includes('state')
                 );
-                
+
                 setTriggerConfig(prev => ({
                     ...prev,
                     phone_column: phoneCol || "",
@@ -102,19 +109,7 @@ export default function OfficialTriggerPage() {
         }
     };
 
-    const loadTemplates = async (sheetId: string) => {
-        setTemplatesLoading(true);
-        try {
-            const data = await googleSheetService.getTemplates(sheetId);
-            if (data.success) {
-                setTemplates(data.templates);
-            }
-        } catch (error) {
-            console.error("Failed to load templates", error);
-        } finally {
-            setTemplatesLoading(false);
-        }
-    };
+
 
     const fetchHistory = async () => {
         try {
@@ -122,7 +117,7 @@ export default function OfficialTriggerPage() {
             setHistory(historyData);
         } catch (error: any) {
             console.error("Failed to fetch trigger history", error);
-            
+
             // Defensive error handling - don't retry on server errors
             if (!error.response) {
                 console.error("Backend not reachable. Please try again later.");
@@ -136,34 +131,49 @@ export default function OfficialTriggerPage() {
     };
 
     const handleSaveTrigger = async () => {
-        if (!selectedSheetId || !triggerConfig.template_name) {
-            alert("Please fill all required fields");
+        if (!selectedSheetId || !triggerConfig.text_message || !selectedDeviceId) {
+            alert("Please fill all required fields, including text message and device");
             return;
         }
 
         setSaving(true);
         try {
-            await googleSheetService.createOfficialTemplateTrigger(selectedSheetId, triggerConfig);
-            alert("✅ Official template trigger created successfully!");
-            
+            const device = devices.find(d => d.device_id === selectedDeviceId);
+
+            // Unofficial triggers generally need a webhook to run logic dynamically, 
+            // but the system may still utilize `setTrigger` endpoint with Unofficial info
+            // For now we map it directly:
+            const triggerPayload = {
+                trigger_type: triggerConfig.trigger_type,
+                is_enabled: triggerConfig.is_enabled,
+                phone_column: triggerConfig.phone_column,
+                message_template: triggerConfig.text_message, // using unofficial raw string template
+                trigger_column: triggerConfig.trigger_column,
+                trigger_value: triggerConfig.trigger_value,
+                status_column: triggerConfig.status_column,
+                // Extra fields stored in DB dynamically or parsed depending on your API
+                device_id: device?.device_id || selectedDeviceId
+            };
+
+            await googleSheetService.setTrigger(selectedSheetId, triggerPayload);
+            alert("✅ Unofficial template trigger created successfully!");
+
             setTriggerConfig({
                 trigger_type: "update_row",
                 is_enabled: true,
-                template_name: "",
-                language_code: "en_US",
+                text_message: "",
                 phone_column: "",
-                header_param_columns: [],
-                body_param_columns: [],
                 trigger_column: "",
                 trigger_value: "",
                 status_column: "Status"
             });
             setSelectedSheetId("");
+            setSelectedDeviceId("");
         } catch (error: any) {
             console.error("Trigger creation error:", error);
-            
+
             let errorMessage = "Failed to create trigger";
-            
+
             if (!error.response) {
                 errorMessage = "Backend not reachable. Please try again.";
             } else if (error.response.status >= 500) {
@@ -173,32 +183,14 @@ export default function OfficialTriggerPage() {
             } else if (error.message) {
                 errorMessage = error.message;
             }
-            
+
             alert(`❌ ${errorMessage}`);
         } finally {
             setSaving(false);
         }
     };
 
-    const toggleParamColumn = (column: string, type: 'header' | 'body') => {
-        setTriggerConfig(prev => {
-            const key = type === 'header' ? 'header_param_columns' : 'body_param_columns';
-            const current = prev[key] as string[];
-            const updated = current.includes(column)
-                ? current.filter(col => col !== column)
-                : [...current, column];
-            return { ...prev, [key]: updated };
-        });
-    };
 
-    const getTemplateStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'approved': return 'bg-green-100 text-green-800';
-            case 'pending': return 'bg-yellow-100 text-yellow-800';
-            case 'rejected': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    };
 
     const getHistoryStatusColor = (status: string) => {
         switch (status.toLowerCase()) {
@@ -214,12 +206,12 @@ export default function OfficialTriggerPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800 uppercase tracking-tight">Official Template Triggers</h1>
-                    <p className="text-gray-500 text-sm mt-1">Automate official WhatsApp template messages based on Google Sheet changes</p>
+                    <h1 className="text-2xl font-bold text-gray-800 uppercase tracking-tight">Bulk Notification Triggers</h1>
+                    <p className="text-gray-500 text-sm mt-1">Automate bulk WhatsApp messages based on Google Sheet changes (Unofficial API)</p>
                     <div className="flex items-center gap-2 mt-2">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs flex items-center gap-1">
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" />
-                            Official Meta API
+                            Unofficial API Context
                         </span>
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs flex items-center gap-1">
                             <Clock className="w-3 h-3" />
@@ -241,8 +233,8 @@ export default function OfficialTriggerPage() {
                             <Settings className="w-5 h-5 text-emerald-600" />
                             Trigger Configuration
                         </h2>
-                        <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs">
-                            Official Template
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                            Unofficial API
                         </span>
                     </div>
 
@@ -260,32 +252,45 @@ export default function OfficialTriggerPage() {
                             </select>
                         </div>
 
-                        {/* Official API Badge */}
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                        {/* Unofficial API Badge */}
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                             <div className="flex items-center gap-2">
-                                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                                <span className="text-sm font-medium text-emerald-800">Official API Active</span>
+                                <CheckCircle className="w-4 h-4 text-purple-600" />
+                                <span className="text-sm font-medium text-purple-800">Unofficial API Active</span>
                             </div>
-                            <p className="text-xs text-emerald-600 mt-1">Using Meta Official WhatsApp API</p>
+                            <p className="text-xs text-purple-600 mt-1">Using Connected WhatsApp Device</p>
                         </div>
 
-                        {/* Template Selection */}
+                        {/* Device Selection */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Template</label>
-                            {templatesLoading ? (
-                                <div className="text-center py-4 text-gray-500">Loading templates...</div>
-                            ) : templates.length === 0 ? (
-                                <div className="text-center py-4 text-gray-500">No approved templates found</div>
-                            ) : (
-                                <select value={triggerConfig.template_name} onChange={(e) => setTriggerConfig(prev => ({ ...prev, template_name: e.target.value }))} className="w-full p-2 border border-gray-300 rounded-md">
-                                    <option value="">Select template</option>
-                                    {templates.filter(t => t.status && t.status.toLowerCase() === 'approved').map((template) => (
-                                        <option key={template.id} value={template.template_name}>
-                                            {template.template_name}
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Select Device</label>
+                            <select
+                                value={selectedDeviceId}
+                                onChange={(e) => setSelectedDeviceId(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-md bg-white"
+                            >
+                                <option value="">Select a connected device...</option>
+                                {devices.map(device => (
+                                    <option key={device.device_id} value={device.device_id}>
+                                        {device.device_name} ({device.device_type || 'Unknown Type'})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Text Message Input */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Text Message / Caption</label>
+                            <textarea
+                                value={triggerConfig.text_message}
+                                onChange={(e) => setTriggerConfig(prev => ({ ...prev, text_message: e.target.value }))}
+                                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                                rows={4}
+                                placeholder="Enter your message here. Use {{ColumnName}} to insert sheet data."
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                                Example: Hello {"{{Name}}"}, your document is attached!
+                            </p>
                         </div>
 
                         {/* Trigger Type */}
@@ -353,42 +358,7 @@ export default function OfficialTriggerPage() {
                             </div>
                         )}
 
-                        {/* Parameter Mapping */}
-                        {columns.length > 0 && (
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Header Parameters</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {columns.map((column) => (
-                                            <label key={column} className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={triggerConfig.header_param_columns.includes(column)}
-                                                    onChange={() => toggleParamColumn(column, 'header')}
-                                                />
-                                                <span className="text-sm">{column}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Body Parameters</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {columns.map((column) => (
-                                            <label key={column} className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={triggerConfig.body_param_columns.includes(column)}
-                                                    onChange={() => toggleParamColumn(column, 'body')}
-                                                />
-                                                <span className="text-sm">{column}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
                         {/* Enable Trigger */}
                         <div className="flex items-center space-x-2">
@@ -402,13 +372,13 @@ export default function OfficialTriggerPage() {
                         </div>
 
                         {/* Save Button */}
-                        <button 
-                            onClick={handleSaveTrigger} 
-                            disabled={saving || !selectedSheetId || !triggerConfig.template_name}
+                        <button
+                            onClick={handleSaveTrigger}
+                            disabled={saving || !selectedSheetId || !triggerConfig.text_message || !selectedDeviceId}
                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             <Save className="w-4 h-4" />
-                            {saving ? 'Saving...' : 'Create Official Template Trigger'}
+                            {saving ? 'Saving...' : 'Create Trigger'}
                         </button>
                     </div>
                 </div>

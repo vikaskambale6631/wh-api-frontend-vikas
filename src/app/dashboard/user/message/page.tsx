@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from "react";
 import {
-    Send, Users, MessageSquare, CheckCircle, AlertCircle,
+    Send, MessageSquare, CheckCircle, AlertCircle,
     RefreshCw, Smartphone, ChevronRight, ChevronLeft,
-    Check, Zap, XCircle
+    Check, Zap, XCircle, Image as ImageIcon, Activity
 } from "lucide-react";
-import { userDashboardService } from "@/services/userDashboardService";
 import groupService, { Group } from "@/services/groupService";
+import unofficialApiService from "@/services/unofficialApiService";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { API_BASE_URL } from "@/config/api";
+import MediaMessageComposer from "@/components/official-message/MediaMessageComposer";
 
 // Animation Variants
 const containerVariants = {
@@ -19,29 +20,47 @@ const containerVariants = {
     exit: { opacity: 0, y: -20, transition: { duration: 0.3 } }
 };
 
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface ConnectedDevice {
+    device_id: string;
+    device_name: string;
+    session_status: string;
+    device_type: string;
+}
+
+interface SendResult {
+    recipient: string;
+    status: "success" | "error";
+    error?: string;
+}
+
 export default function UnofficialMessagePage() {
     // Steps: 1=Type, 2=Recipient, 3=Compose, 4=Review
     const [currentStep, setCurrentStep] = useState(1);
-    
-    // 🔥 FIXED: Get userId from localStorage
-    const [userId, setUserId] = useState<string | null>(null);
 
-    // Device Status
+    // User & Device
+    const [userId, setUserId] = useState<string | null>(null);
     const [deviceStatus, setDeviceStatus] = useState<"loading" | "connected" | "disconnected">("loading");
     const [deviceName, setDeviceName] = useState<string>("");
+    const [connectedDevice, setConnectedDevice] = useState<ConnectedDevice | null>(null);
+    const [engineStatus, setEngineStatus] = useState<string | null>(null);
 
     // Form states
-    const [messageType, setMessageType] = useState<"text">("text"); // Only text supported officially for now in this wizard
+    const [messageType, setMessageType] = useState<"text" | "media">("text");
+    const [mediaType, setMediaType] = useState<"image" | "video" | "document">("image");
+    const [filePath, setFilePath] = useState("");
+    const [caption, setCaption] = useState("");
     const [recipientType, setRecipientType] = useState<"single" | "group">("single");
 
-    // Single user messaging states
+    // Single user messaging
     const [singleUserPhone, setSingleUserPhone] = useState("");
 
-    // Group messaging states
+    // Group messaging
     const [groups, setGroups] = useState<Group[]>([]);
     const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
 
-    // Content state
+    // Content
     const [messageContent, setMessageContent] = useState("");
 
     // Status states
@@ -49,8 +68,13 @@ export default function UnofficialMessagePage() {
     const [sending, setSending] = useState(false);
     const [status, setStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+
+    // Bulk send results
+    const [bulkResults, setBulkResults] = useState<SendResult[] | null>(null);
+
+    // ─── Init ────────────────────────────────────────────────────────────────
+
     useEffect(() => {
-        // 🔥 FIXED: Get userId from localStorage
         const storedUserId = localStorage.getItem("user_id");
         if (storedUserId) {
             setUserId(storedUserId);
@@ -58,63 +82,99 @@ export default function UnofficialMessagePage() {
         }
     }, []);
 
+    // Auto-poll device connection when disconnected
+    useEffect(() => {
+        if (!userId || deviceStatus === "connected") return;
+
+        const intervalId = setInterval(async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/devices/unofficial/connected?user_id=${userId}`);
+                const data = await response.json();
+
+                const device = (data.devices || []).find((d: any) =>
+                    d.session_status === "connected" && d.device_type === "web"
+                );
+
+                if (device) {
+                    setDeviceStatus("connected");
+                    setDeviceName(device.device_name);
+                    setConnectedDevice(device);
+                    // Run status check on the connected device
+                    runStatusCheck(device.device_id, device.device_name);
+                }
+            } catch {
+                // Ignore background polling errors
+            }
+        }, 5000);
+
+        return () => clearInterval(intervalId);
+    }, [userId, deviceStatus]);
+
+    // ─── Device & Groups ──────────────────────────────────────────────────────
+
     const checkDeviceAndLoadGroups = async (currentUserId: string) => {
         setLoading(true);
         const token = localStorage.getItem("token");
         if (!token) return;
 
         try {
-            // 1. Check Device Status - 🔥 FIXED: Use unofficial/connected endpoint for STRICT filtering
+            // 1. Check device status
             const response = await fetch(`${API_BASE_URL}/devices/unofficial/connected?user_id=${currentUserId}`);
             const data = await response.json();
-            
-            // 🔥 STRICT FILTER: Only show devices that backend confirms are CONNECTED
-            const connectedDevices = data.devices || [];
-            const connectedDevice = connectedDevices.find((d: any) =>
-                d.session_status === "connected" &&
-                d.device_type === "web"
+
+            const device = (data.devices || []).find((d: any) =>
+                d.session_status === "connected" && d.device_type === "web"
             );
 
-            if (connectedDevice) {
+            if (device) {
                 setDeviceStatus("connected");
-                setDeviceName(connectedDevice.device_name);
-                console.log("✅ Found connected device:", connectedDevice.device_name);
+                setDeviceName(device.device_name);
+                setConnectedDevice(device);
+                console.log("✅ Found connected device:", device.device_name);
+
+                // 2. Run /status-check via unofficial API
+                runStatusCheck(device.device_id, device.device_name);
             } else {
                 setDeviceStatus("disconnected");
                 console.log("❌ No connected unofficial devices found");
             }
 
-            // 2. Load Groups
+            // 3. Load Groups
             const groupsData = await groupService.getGroups(token);
             setGroups(groupsData);
 
         } catch (error) {
             console.error("Failed to load initial data:", error);
-            setDeviceStatus("disconnected"); // Assume disconnected on error
+            setDeviceStatus("disconnected");
         } finally {
             setLoading(false);
         }
     };
 
+    const runStatusCheck = async (deviceId: string, deviceNameStr: string) => {
+        try {
+            const result = await unofficialApiService.statusCheck(deviceId, deviceNameStr);
+            setEngineStatus(result?.status || result?.session_status || "checked");
+            console.log("🔍 Status check result:", result);
+        } catch (err: any) {
+            console.warn("Status check failed:", err.message);
+            setEngineStatus("error");
+        }
+    };
+
     const refreshDeviceStatus = async () => {
         if (!userId) return;
-        
         setLoading(true);
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
         try {
-            // Force refresh by calling the sync endpoint directly
             await fetch(`${API_BASE_URL.replace('/api', '')}/sync-devices/${userId}`);
-
-            // Then check device status again
             await checkDeviceAndLoadGroups(userId);
-
         } catch (error) {
             console.error("Failed to refresh device status:", error);
             setLoading(false);
         }
     };
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
 
     const toggleGroup = (groupId: string) => {
         if (selectedGroupIds.includes(groupId)) {
@@ -124,11 +184,38 @@ export default function UnofficialMessagePage() {
         }
     };
 
-    // Validation Logic for Steps
-    const isStepValid = (step: number) => {
-        if (deviceStatus !== "connected") return false; // Block everything if no device
 
-        if (step === 1) return true; // Type selection (only Text for now)
+
+    /** Collect all phone numbers from selected groups */
+    const getGroupRecipients = async (): Promise<string[]> => {
+        const token = localStorage.getItem("token");
+        if (!token) return [];
+
+        const allPhones: string[] = [];
+        const contactPromises = selectedGroupIds.map(groupId =>
+            groupService.getGroupContacts(token, groupId)
+                .then(contacts => {
+                    contacts.forEach(c => {
+                        if (c.phone && !allPhones.includes(c.phone)) {
+                            allPhones.push(c.phone);
+                        }
+                    });
+                })
+                .catch(err => {
+                    console.error(`Failed to get contacts for group ${groupId}:`, err);
+                })
+        );
+
+        await Promise.all(contactPromises);
+        return allPhones;
+    };
+
+    // ─── Validation ───────────────────────────────────────────────────────────
+
+    const isStepValid = (step: number) => {
+        if (deviceStatus !== "connected") return false;
+
+        if (step === 1) return true;
 
         if (step === 2) {
             if (recipientType === "single") {
@@ -139,7 +226,11 @@ export default function UnofficialMessagePage() {
         }
 
         if (step === 3) {
-            return messageContent.trim().length > 0;
+            if (messageType === "text") {
+                return messageContent.trim().length > 0;
+            } else {
+                return filePath.trim().length > 0;
+            }
         }
 
         return true;
@@ -157,70 +248,210 @@ export default function UnofficialMessagePage() {
         }
     };
 
+    // ─── Send Message — Full Integration ──────────────────────────────────────
+
     const handleSendMessage = async () => {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+        if (!connectedDevice) {
+            setStatus({ type: "error", text: "No connected device found. Please connect your device first." });
+            return;
+        }
 
         try {
             setSending(true);
             setStatus(null);
+            setBulkResults(null);
 
-            // 🔥 FIXED: Double-check device is still connected before sending
-            if (!userId) {
-                throw new Error("User ID not found. Please refresh the page.");
-            }
-            
-            const response = await fetch(`${API_BASE_URL}/devices/unofficial/connected?user_id=${userId}`);
-            const data = await response.json();
-            const connectedDevices = data.devices || [];
-            const connectedDevice = connectedDevices.find((d: any) =>
-                d.session_status === "connected" &&
-                d.device_type === "web"
+            const { device_id, device_name } = connectedDevice;
+
+            console.log("🔐 Device ID being used:", device_id);
+            console.log("🔐 Device Name being used:", device_name);
+            console.log("🔐 Full connectedDevice:", JSON.stringify(connectedDevice));
+
+            // ── Re-verify device is still connected ──
+            const verifyRes = await fetch(`${API_BASE_URL}/devices/unofficial/connected?user_id=${userId}`);
+            const verifyData = await verifyRes.json();
+            console.log("🔐 Verify response:", JSON.stringify(verifyData));
+            const stillConnected = (verifyData.devices || []).find((d: any) =>
+                d.session_status === "connected" && d.device_type === "web"
             );
 
-            if (!connectedDevice) {
-                throw new Error("No connected device found. Please connect your device first.");
+            if (!stillConnected) {
+                throw new Error("Device disconnected. Please reconnect and try again.");
             }
 
-            console.log("🔐 Sending message via device:", connectedDevice.device_name);
+            console.log("🔐 Sending via device:", device_name, "ID:", device_id);
 
-            if (recipientType === "single") {
-                const response = await userDashboardService.sendUnofficialMessage(token, singleUserPhone, messageContent);
-                if (!response.success) throw new Error(response.message || "Failed to send message");
-            } else {
-                // Unofficial Group Sending (Backend handles iteration natively or loop is done in backend)
-                // Checking groupService: it calls /groups/send-message which iterates in backend.
-                // So we just make one call.
-                const response = await groupService.sendMessage(token, selectedGroupIds, messageContent);
-                if (!response.success) throw new Error("Failed to send group messages");
+            // ═══════════════════════════════════════════════════════════════════
+            // TEXT MESSAGE
+            // ═══════════════════════════════════════════════════════════════════
+            if (messageType === "text") {
+                if (recipientType === "single") {
+                    // ── Single user text → POST /send-message (JSON) ──
+                    const result = await unofficialApiService.sendMessage(
+                        device_id,
+                        device_name,
+                        singleUserPhone,
+                        messageContent,
+                        true, // wait for delivery
+                        30
+                    );
+                    console.log("✅ Text message result:", result);
+                    setStatus({ type: "success", text: "✅ Text message sent successfully!" });
+                } else {
+                    // ── Group text broadcast → POST /bulk-send-messages (FormData) ──
+                    const recipients = await getGroupRecipients();
+                    if (recipients.length === 0) {
+                        throw new Error("No contacts found in selected groups.");
+                    }
 
-                setStatus({
-                    type: "success",
-                    text: `Sent successfully to ${response.sent} contacts.`
-                });
-                // Return early to avoid overriding status if we want detailed "sent X" message
-                // But the finally block handles cleanup? No, let's just let it flow.
+                    console.log(`📤 Bulk text to ${recipients.length} recipients`);
+                    const result = await unofficialApiService.bulkSendMessages(
+                        device_id,
+                        device_name,
+                        messageContent,
+                        recipients,
+                        true,
+                        30
+                    );
+
+                    setBulkResults(result.results.map(r => ({
+                        recipient: r.recipient,
+                        status: r.status,
+                        error: r.error
+                    })));
+
+                    setStatus({
+                        type: result.error_count > 0 ? "error" : "success",
+                        text: `📤 Sent to ${result.success_count}/${result.total_recipients} recipients. ${result.delivered_count} delivered.${result.error_count > 0 ? ` ${result.error_count} failed.` : ''}`
+                    });
+                }
             }
 
-            if (recipientType === "single") {
-                setStatus({ type: "success", text: "Message sent successfully!" });
+            // ═══════════════════════════════════════════════════════════════════
+            // MEDIA MESSAGE (file_path approach — NO base64)
+            // ═══════════════════════════════════════════════════════════════════
+            else {
+                if (!filePath.trim()) {
+                    setStatus({ type: "error", text: "Please enter a file path or URL." });
+                    return;
+                }
+
+                // Strip any literal quotes that the user might have copy-pasted (e.g., from Windows "Copy as path")
+                const cleanFilePath = filePath.trim().replace(/^["']|["']$/g, '');
+
+                if (recipientType === "single") {
+                    // ── Single user media ──
+                    let result: any;
+                    if (caption.trim()) {
+                        // File + Text → POST /send-file-text
+                        console.log("📎 Sending file + text via /send-file-text");
+                        result = await unofficialApiService.sendFileText(
+                            device_id,
+                            device_name,
+                            singleUserPhone,
+                            cleanFilePath,
+                            caption
+                        );
+                        console.log("📎 send-file-text result:", result);
+                    } else {
+                        // File only → POST /send-file
+                        console.log("📎 Sending file via /send-file");
+                        result = await unofficialApiService.sendFile(
+                            device_id,
+                            device_name,
+                            singleUserPhone,
+                            cleanFilePath
+                        );
+                        console.log("📎 send-file result:", result);
+                    }
+
+                    // Check if backend returned success: false (engine error)
+                    if (result && result.success === false) {
+                        throw new Error(result.message || result.error || "File sending failed at engine level.");
+                    }
+
+                    setStatus({
+                        type: "success",
+                        text: `✅ Media sent successfully!${caption.trim() ? " (with caption)" : ""}`
+                    });
+                } else {
+                    // ── Group media broadcast ──
+                    const recipients = await getGroupRecipients();
+                    if (recipients.length === 0) {
+                        throw new Error("No contacts found in selected groups.");
+                    }
+
+                    console.log(`📤 Bulk media to ${recipients.length} recipients`);
+
+                    let bulkResponse: any;
+
+                    if (caption.trim()) {
+                        // File + Text → POST /bulk-send-files-with-text
+                        console.log("📤 Using /bulk-send-files-with-text");
+                        bulkResponse = await unofficialApiService.bulkSendFilesWithText(
+                            device_id,
+                            device_name,
+                            caption,
+                            recipients,
+                            cleanFilePath,
+                            true,
+                            30
+                        );
+                    } else {
+                        // File only → POST /bulk-send-files
+                        console.log("📤 Using /bulk-send-files");
+                        bulkResponse = await unofficialApiService.bulkSendFiles(
+                            device_id,
+                            device_name,
+                            cleanFilePath,
+                            recipients,
+                            true,
+                            30
+                        );
+                    }
+
+                    // Display REAL backend response
+                    const successCount = bulkResponse.success_count || 0;
+                    const errorCount = bulkResponse.error_count || 0;
+                    const totalRecipients = bulkResponse.total_recipients || recipients.length;
+                    const failedNumbers = (bulkResponse.results || [])
+                        .filter((r: any) => r.status === "error")
+                        .map((r: any) => r.recipient);
+
+                    setBulkResults((bulkResponse.results || []).map((r: any) => ({
+                        recipient: r.recipient,
+                        status: r.status,
+                        error: r.error
+                    })));
+
+                    setStatus({
+                        type: errorCount > 0 ? "error" : "success",
+                        text: `📤 Media sent to ${successCount}/${totalRecipients} recipients.${errorCount > 0 ? ` ${errorCount} failed.` : ''}${caption.trim() ? " (with caption)" : ""}`
+                    });
+                }
             }
 
-            setCurrentStep(1); // Reset
+            // Reset form on success
+            setCurrentStep(1);
             setMessageContent("");
             setSingleUserPhone("");
             setSelectedGroupIds([]);
+            setFilePath("");
+            setCaption("");
 
         } catch (error: any) {
             console.error("❌ Message sending failed:", error);
             setStatus({
                 type: "error",
-                text: error.response?.data?.detail || error.message || "Failed to send message."
+                text: error.message || "Failed to send message. Please try again."
             });
         } finally {
             setSending(false);
         }
     };
+
+
+    // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
         <div className="min-h-screen bg-gray-50/50 p-6 font-sans">
@@ -240,6 +471,9 @@ export default function UnofficialMessagePage() {
                         <Smartphone size={16} />
                         {loading ? "Checking device..." :
                             deviceStatus === "connected" ? `Connected: ${deviceName}` : "No Device Connected"}
+                        {engineStatus && deviceStatus === "connected" && (
+                            <span className="ml-1 text-xs opacity-70">({engineStatus})</span>
+                        )}
                         <button
                             onClick={refreshDeviceStatus}
                             disabled={loading}
@@ -334,19 +568,25 @@ export default function UnofficialMessagePage() {
                                         </button>
 
                                         <button
-                                            disabled
-                                            className="group relative p-8 rounded-2xl border-2 border-gray-50 bg-gray-50 text-left opacity-60 cursor-not-allowed"
+                                            onClick={() => setMessageType("media")}
+                                            className={`group relative p-8 rounded-2xl border-2 text-left transition-all duration-300 hover:shadow-lg ${messageType === 'media'
+                                                ? 'border-emerald-500 bg-emerald-50/50'
+                                                : 'border-gray-100 hover:border-emerald-200 hover:bg-white'
+                                                }`}
                                         >
-                                            <div className="w-12 h-12 rounded-xl bg-gray-200 text-gray-400 flex items-center justify-center mb-4">
-                                                <Zap size={24} />
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${messageType === 'media' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-emerald-100 group-hover:text-emerald-600'
+                                                }`}>
+                                                <ImageIcon size={24} />
                                             </div>
-                                            <div className="flex justify-between items-center mb-2">
-                                                <h3 className="text-lg font-bold text-gray-500">Media Message</h3>
-                                                <span className="text-[10px] uppercase font-bold bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Coming Soon</span>
-                                            </div>
-                                            <p className="text-sm text-gray-400 leading-relaxed">
-                                                Send images, videos, and documents. Feature currently in development.
+                                            <h3 className={`text-lg font-bold mb-2 ${messageType === 'media' ? 'text-emerald-900' : 'text-gray-800'}`}>Media Message</h3>
+                                            <p className="text-sm text-gray-500 leading-relaxed">
+                                                Send images, videos, and documents with optional captions.
                                             </p>
+                                            {messageType === 'media' && (
+                                                <div className="absolute top-4 right-4 text-emerald-500">
+                                                    <CheckCircle size={24} />
+                                                </div>
+                                            )}
                                         </button>
                                     </div>
                                 </div>
@@ -390,7 +630,7 @@ export default function UnofficialMessagePage() {
                                                         value={singleUserPhone}
                                                         onChange={(e) => setSingleUserPhone(e.target.value)}
                                                         className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-                                                        placeholder="e.g. 15551234567"
+                                                        placeholder="e.g. 919876543210"
                                                     />
                                                 </div>
                                                 <p className="mt-2 text-xs text-gray-500">Enter the full phone number with country code (digits only).</p>
@@ -413,9 +653,14 @@ export default function UnofficialMessagePage() {
                                                                 onChange={() => toggleGroup(group.group_id)}
                                                                 className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 border-gray-300"
                                                             />
-                                                            <span className={`font-medium ${selectedGroupIds.includes(group.group_id) ? 'text-emerald-900' : 'text-gray-700'}`}>
-                                                                {group.name}
-                                                            </span>
+                                                            <div>
+                                                                <span className={`font-medium ${selectedGroupIds.includes(group.group_id) ? 'text-emerald-900' : 'text-gray-700'}`}>
+                                                                    {group.name}
+                                                                </span>
+                                                                {group.contact_count > 0 && (
+                                                                    <span className="block text-xs text-gray-400">{group.contact_count} contacts</span>
+                                                                )}
+                                                            </div>
                                                         </label>
                                                     ))}
                                                     {groups.length === 0 && (
@@ -434,26 +679,39 @@ export default function UnofficialMessagePage() {
                             {currentStep === 3 && (
                                 <div className="p-8 md:p-12 flex-1">
                                     <div className="flex items-center justify-between mb-8">
-                                        <h2 className="text-2xl font-bold text-gray-800">Compose Message</h2>
+                                        <h2 className="text-2xl font-bold text-gray-800">
+                                            {messageType === 'text' ? 'Compose Message' : 'Compose Media'}
+                                        </h2>
                                     </div>
 
                                     <div className="grid lg:grid-cols-3 gap-8 h-full">
                                         <div className="lg:col-span-2 space-y-6">
-                                            <div>
-                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Message Content</label>
-                                                <textarea
-                                                    value={messageContent}
-                                                    onChange={(e) => setMessageContent(e.target.value)}
-                                                    className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all h-64 resize-none shadow-sm"
-                                                    placeholder="Type your message here..."
-                                                />
-                                                <div className="text-right mt-2 text-xs text-gray-400">
-                                                    {messageContent.length} characters
+                                            {messageType === "text" ? (
+                                                <div>
+                                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Message Content</label>
+                                                    <textarea
+                                                        value={messageContent}
+                                                        onChange={(e) => setMessageContent(e.target.value)}
+                                                        className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all h-64 resize-none shadow-sm"
+                                                        placeholder="Type your message here..."
+                                                    />
+                                                    <div className="text-right mt-2 text-xs text-gray-400">
+                                                        {messageContent.length} characters
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <MediaMessageComposer
+                                                    mediaType={mediaType}
+                                                    setMediaType={setMediaType}
+                                                    filePath={filePath}
+                                                    setFilePath={setFilePath}
+                                                    caption={caption}
+                                                    setCaption={setCaption}
+                                                />
+                                            )}
                                         </div>
 
-                                        {/* Preview / Tips Column */}
+                                        {/* Tips Column */}
                                         <div className="bg-emerald-900/5 rounded-2xl p-6 h-fit border border-emerald-900/10 hidden lg:block">
                                             <h3 className="font-semibold text-emerald-900 mb-4 flex items-center gap-2">
                                                 <Zap size={18} /> Best Practices
@@ -469,8 +727,14 @@ export default function UnofficialMessagePage() {
                                                 </li>
                                                 <li className="flex gap-3">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
-                                                    <span>Unofficial messages respect your device's sending limits.</span>
+                                                    <span>{messageType === 'media' ? 'Supported: JPG, PNG, MP4, PDF, DOC, CSV, XLS. Captions sent as follow-up text.' : 'Messages are sent through your device\'s connection.'}</span>
                                                 </li>
+                                                {recipientType === "group" && (
+                                                    <li className="flex gap-3">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                                                        <span>Group broadcasts use parallel sending (Promise.allSettled) for speed.</span>
+                                                    </li>
+                                                )}
                                             </ul>
                                         </div>
                                     </div>
@@ -507,10 +771,33 @@ export default function UnofficialMessagePage() {
                                                     : `${selectedGroupIds.length} Groups Selected`}
                                             </p>
                                         </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">API Endpoint</label>
+                                            <p className="font-mono text-xs text-emerald-700 mt-1">
+                                                {messageType === "text"
+                                                    ? recipientType === "single"
+                                                        ? "POST /send-message"
+                                                        : "POST /bulk-send-messages"
+                                                    : recipientType === "single"
+                                                        ? caption.trim()
+                                                            ? "POST /send-file-text"
+                                                            : "POST /send-file"
+                                                        : caption.trim()
+                                                            ? "POST /bulk-send-files-with-text"
+                                                            : "POST /bulk-send-files"
+                                                }
+                                            </p>
+                                        </div>
                                         <div className="md:col-span-2">
-                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Content</label>
+                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Content Preview</label>
                                             <div className="mt-2 p-3 bg-white rounded-lg border border-gray-100 text-sm text-gray-600 max-h-32 overflow-y-auto whitespace-pre-wrap">
-                                                {messageContent}
+                                                {messageType === 'text' ? messageContent : (
+                                                    <>
+                                                        <span className="block font-medium text-gray-800 mb-1">Media Type: <span className="capitalize">{mediaType}</span></span>
+                                                        <span className="block text-xs text-gray-500">File Path: {filePath || "No file path set"}</span>
+                                                        {caption && <span className="block text-xs text-gray-500 mt-1">Caption: {caption}</span>}
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -553,6 +840,42 @@ export default function UnofficialMessagePage() {
                     )}
                 </AnimatePresence>
 
+                {/* ── Bulk Results Panel ──────────────────────────────────────── */}
+                <AnimatePresence>
+                    {bulkResults && bulkResults.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6"
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                    <Activity size={20} /> Broadcast Results
+                                </h3>
+                                <button
+                                    onClick={() => setBulkResults(null)}
+                                    className="text-gray-400 hover:text-gray-600 text-sm"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                            <div className="max-h-64 overflow-y-auto space-y-2">
+                                {bulkResults.map((r, idx) => (
+                                    <div key={idx} className={`flex items-center justify-between p-3 rounded-lg text-sm ${r.status === "success" ? "bg-green-50" : "bg-red-50"}`}>
+                                        <span className="font-mono text-gray-700">{r.recipient}</span>
+                                        <span className={`flex items-center gap-1 font-medium ${r.status === "success" ? "text-green-700" : "text-red-600"}`}>
+                                            {r.status === "success" ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                                            {r.status === "success" ? "Sent" : r.error || "Failed"}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+
                 {/* Feedback Toast */}
                 <AnimatePresence>
                     {status && (
@@ -560,7 +883,7 @@ export default function UnofficialMessagePage() {
                             initial={{ opacity: 0, y: 50 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 50 }}
-                            className={`fixed bottom-8 right-8 p-4 rounded-xl shadow-2xl flex items-center gap-4 z-50 ${status.type === 'success' ? 'bg-emerald-900 text-white' : 'bg-red-500 text-white'
+                            className={`fixed bottom-8 right-8 p-4 rounded-xl shadow-2xl flex items-center gap-4 z-50 max-w-lg ${status.type === 'success' ? 'bg-emerald-900 text-white' : 'bg-red-500 text-white'
                                 }`}
                         >
                             {status.type === 'success' ? <CheckCircle size={24} /> : <AlertCircle size={24} />}

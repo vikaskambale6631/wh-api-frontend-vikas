@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import {
     Send, Users, MessageSquare, CheckCircle, AlertCircle,
     RefreshCw, ShieldCheck, ChevronRight, ChevronLeft,
-    Check, Zap, XCircle
+    Check, Zap, XCircle, Image as ImageIcon
 } from "lucide-react";
 import officialWhatsappService, { WhatsAppTemplate } from "@/services/officialWhatsappService";
 import groupService, { Group } from "@/services/groupService";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import Link from "next/link";
+import MediaMessageComposer from "@/components/official-message/MediaMessageComposer";
 
 // Animation Variants
 const containerVariants: Variants = {
@@ -23,7 +24,12 @@ export default function OfficialMessagePage() {
     const [currentStep, setCurrentStep] = useState(1);
 
     // Form states
-    const [messageType, setMessageType] = useState<"text" | "template">("text");
+    const [messageType, setMessageType] = useState<"text" | "template" | "media">("text");
+
+    // Media messaging states
+    const [mediaType, setMediaType] = useState<"image" | "video" | "document">("image");
+    const [filePath, setFilePath] = useState("");
+    const [caption, setCaption] = useState("");
     const [recipientType, setRecipientType] = useState<"single" | "group">("single");
 
     // Single user messaging states
@@ -112,10 +118,11 @@ export default function OfficialMessagePage() {
         if (step === 3) {
             if (messageType === "text") {
                 return textContent.trim().length > 0;
-            } else {
-                // For template, must select one. Variables are optional technically depending on API, but good to check?
-                // For now just check template selected
+            } else if (messageType === "template") {
                 return selectedTemplate.length > 0;
+            } else {
+                // Media: must have a file path
+                return filePath.trim().length > 0;
             }
         }
 
@@ -149,7 +156,7 @@ export default function OfficialMessagePage() {
             if (recipientType === "single") {
                 if (messageType === "text") {
                     await officialWhatsappService.sendTextMessage(singleUserPhone, textContent, token);
-                } else {
+                } else if (messageType === "template") {
                     await officialWhatsappService.sendTemplateMessage(
                         singleUserPhone,
                         selectedTemplate,
@@ -157,6 +164,26 @@ export default function OfficialMessagePage() {
                         language,
                         token
                     );
+                } else if (messageType === "media") {
+                    // ── Media message (single user) ──────────────────────────
+                    if (!filePath.trim()) {
+                        setStatus({ type: "error", text: "Please enter a file path or URL." });
+                        return;
+                    }
+                    const result = await officialWhatsappService.sendMediaMessage(
+                        singleUserPhone,
+                        filePath,
+                        caption,
+                        token
+                    );
+                    if (result && !result.success) {
+                        setStatus({
+                            type: "error",
+                            text: result.error_message || result.message || "Failed to send media."
+                        });
+                        setSending(false);
+                        return;
+                    }
                 }
             } else {
                 // Group Broadcast
@@ -169,7 +196,7 @@ export default function OfficialMessagePage() {
                         textContent,
                         "official"
                     );
-                } else {
+                } else if (messageType === "template") {
                     await groupService.sendMessage(
                         token,
                         selectedGroupIds,
@@ -179,6 +206,14 @@ export default function OfficialMessagePage() {
                         templateVariables,
                         language
                     );
+                } else if (messageType === "media") {
+                    // Media group broadcast is not yet supported by the group service
+                    setStatus({
+                        type: "error",
+                        text: "Media group broadcast is not yet supported. Please send to individual recipients."
+                    });
+                    setSending(false);
+                    return;
                 }
             }
 
@@ -191,6 +226,8 @@ export default function OfficialMessagePage() {
             setSelectedGroupIds([]);
             setSelectedTemplate("");
             setTemplateVariables({});
+            setFilePath("");
+            setCaption("");
 
         } catch (error: any) {
             console.error(error);
@@ -264,7 +301,7 @@ export default function OfficialMessagePage() {
                         {currentStep === 1 && (
                             <div className="p-8 md:p-12 flex-1 flex flex-col justify-center">
                                 <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">What kind of message are you sending?</h2>
-                                <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto w-full">
+                                <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto w-full">
                                     {/* Text Message Option */}
                                     <button
                                         onClick={() => setMessageType("text")}
@@ -305,6 +342,29 @@ export default function OfficialMessagePage() {
                                             Pre-approved templates. Required to initiate conversations. Support variables.
                                         </p>
                                         {messageType === 'template' && (
+                                            <div className="absolute top-4 right-4 text-emerald-500">
+                                                <CheckCircle size={24} />
+                                            </div>
+                                        )}
+                                    </button>
+
+                                    {/* Media Message Option */}
+                                    <button
+                                        onClick={() => setMessageType("media")}
+                                        className={`group relative p-8 rounded-2xl border-2 text-left transition-all duration-300 hover:shadow-lg ${messageType === 'media'
+                                            ? 'border-emerald-500 bg-emerald-50/50'
+                                            : 'border-gray-100 hover:border-emerald-200 hover:bg-white'
+                                            }`}
+                                    >
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${messageType === 'media' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-emerald-100 group-hover:text-emerald-600'
+                                            }`}>
+                                            <ImageIcon size={24} />
+                                        </div>
+                                        <h3 className={`text-lg font-bold mb-2 ${messageType === 'media' ? 'text-emerald-900' : 'text-gray-800'}`}>Media Message</h3>
+                                        <p className="text-sm text-gray-500 leading-relaxed">
+                                            Send images, videos, or documents via WhatsApp Cloud API.
+                                        </p>
+                                        {messageType === 'media' && (
                                             <div className="absolute top-4 right-4 text-emerald-500">
                                                 <CheckCircle size={24} />
                                             </div>
@@ -397,7 +457,7 @@ export default function OfficialMessagePage() {
                             <div className="p-8 md:p-12 flex-1">
                                 <div className="flex items-center justify-between mb-8">
                                     <h2 className="text-2xl font-bold text-gray-800">
-                                        {messageType === 'text' ? 'Compose Message' : 'Configure Template'}
+                                        {messageType === 'text' ? 'Compose Message' : messageType === 'template' ? 'Configure Template' : 'Compose Media'}
                                     </h2>
                                 </div>
 
@@ -422,7 +482,7 @@ export default function OfficialMessagePage() {
                                                     placeholder="Type your message here..."
                                                 />
                                             </div>
-                                        ) : (
+                                        ) : messageType === "template" ? (
                                             <div className="space-y-6">
                                                 <div>
                                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Select Template</label>
@@ -467,6 +527,16 @@ export default function OfficialMessagePage() {
                                                     </div>
                                                 )}
                                             </div>
+                                        ) : (
+                                            /* Media Message Composer */
+                                            <MediaMessageComposer
+                                                mediaType={mediaType}
+                                                setMediaType={setMediaType}
+                                                filePath={filePath}
+                                                setFilePath={setFilePath}
+                                                caption={caption}
+                                                setCaption={setCaption}
+                                            />
                                         )}
                                     </div>
 
@@ -527,12 +597,18 @@ export default function OfficialMessagePage() {
                                     <div className="md:col-span-2">
                                         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Content Preview</label>
                                         <div className="mt-2 p-3 bg-white rounded-lg border border-gray-100 text-sm text-gray-600 max-h-32 overflow-y-auto whitespace-pre-wrap">
-                                            {messageType === 'text' ? textContent : (
+                                            {messageType === 'text' ? textContent : messageType === 'template' ? (
                                                 <>
                                                     <span className="block font-medium text-gray-800 mb-1">Template: {selectedTemplate}</span>
                                                     {Object.entries(templateVariables).map(([k, v]) => (
                                                         <span key={k} className="block text-xs text-gray-500">{k}: {v}</span>
                                                     ))}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="block font-medium text-gray-800 mb-1">Media Type: <span className="capitalize">{mediaType}</span></span>
+                                                    <span className="block text-xs text-gray-500">File Path: {filePath || "No file path set"}</span>
+                                                    {caption && <span className="block text-xs text-gray-500 mt-1">Caption: {caption}</span>}
                                                 </>
                                             )}
                                         </div>

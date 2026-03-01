@@ -43,6 +43,50 @@ export default function DeviceList({ userId }: { userId: string }) {
         }
     }, [userId]);
 
+    // 🔥 TASK 3: Real-time logout detection via background polling
+    useEffect(() => {
+        if (!userId) return;
+
+        // We only poll to check if ANY of our CURRENTLY CONNECTED unofficial devices 
+        // suddenly became 'logged_out' due to a mobile disconnect
+        const connectedDeviceIds = unofficialDevices
+            .filter(d => d.session_status === 'connected')
+            .map(d => d.device_id);
+
+        if (connectedDeviceIds.length === 0) return;
+
+        const intervalId = setInterval(async () => {
+            try {
+                // Fetch latest statuses
+                const unofficial = await deviceService.getUnofficialDevices(userId);
+
+                let detectedLogout = false;
+
+                // Compare new statuses against our known 'connected' devices
+                for (const oldId of connectedDeviceIds) {
+                    const latestDevice = unofficial.find((d: Device) => d.device_id === oldId);
+                    if (latestDevice && latestDevice.session_status === 'logged_out') {
+                        // 🚨 Mobile Logout Detected!
+                        detectedLogout = true;
+
+                        // Force UI alert
+                        alert(`⚠️ Device "${latestDevice.device_name}" was logged out from your mobile device. Please remove it and reconnect.`);
+                        break; // One alert is enough
+                    }
+                }
+
+                if (detectedLogout) {
+                    // Update the state so the table reflects the new logged_out status
+                    setUnofficialDevices(unofficial);
+                }
+            } catch (error) {
+                // Ignore silent polling errors
+            }
+        }, 3000); // 3-second heartbeat
+
+        return () => clearInterval(intervalId);
+    }, [userId, unofficialDevices]);
+
     // No periodic polling or timers: trust backend DB state as single source of truth
 
     const handleAddDevice = () => {
@@ -57,10 +101,10 @@ export default function DeviceList({ userId }: { userId: string }) {
         try {
             setActionLoading(true);
             console.log("🔧 Creating new device:", { userId, deviceName: newDeviceName });
-            
+
             await deviceService.addDevice(userId, newDeviceName);
             console.log("✅ Device created successfully");
-            
+
             setShowAddModal(false);
             // Force refetch to ensure UI reflects DB state immediately
             await fetchDevices();
@@ -79,7 +123,7 @@ export default function DeviceList({ userId }: { userId: string }) {
             try {
                 setActiveActionDeviceId(deviceId);
                 console.log("🗑️ Logging out device:", { deviceId, deviceName });
-                
+
                 await deviceService.logoutDevice(deviceId);
                 console.log("✅ Device logged out successfully");
 
@@ -132,10 +176,10 @@ export default function DeviceList({ userId }: { userId: string }) {
     const handleConnect = (device: Device) => {
         setActiveActionDeviceId(device.device_id);
         setSelectedDevice(device);
-        console.log("📷 Initiating QR connection for device:", { 
-            deviceId: device.device_id, 
+        console.log("📷 Initiating QR connection for device:", {
+            deviceId: device.device_id,
             deviceName: device.device_name,
-            currentStatus: device.session_status 
+            currentStatus: device.session_status
         });
         setShowQR(true);
     };
@@ -163,16 +207,15 @@ export default function DeviceList({ userId }: { userId: string }) {
                         <div>
                             <h3 className="font-semibold text-lg">{device.device_name}</h3>
                             {!isOfficial && (
-                                <span className={`inline-block mt-1 px-2 py-1 text-xs rounded-full font-medium ${
-                                    isConnected ? 'bg-green-100 text-green-700' : 
+                                <span className={`inline-block mt-1 px-2 py-1 text-xs rounded-full font-medium ${isConnected ? 'bg-green-100 text-green-700' :
                                     isQRReady ? 'bg-blue-100 text-blue-700' :
-                                    isCreated ? 'bg-gray-100 text-gray-600' :
-                                    'bg-red-50 text-red-600'
-                                }`}>
-                                    {isConnected ? '✅ Connected Device' : 
-                                     isQRReady ? '� QR Ready' :
-                                     isCreated ? '📱 Device Created' :
-                                     '❌ Disconnected'}
+                                        isCreated ? 'bg-gray-100 text-gray-600' :
+                                            'bg-red-50 text-red-600'
+                                    }`}>
+                                    {isConnected ? '✅ Connected Device' :
+                                        isQRReady ? '� QR Ready' :
+                                            isCreated ? '📱 Device Created' :
+                                                '❌ Disconnected'}
                                 </span>
                             )}
                             {isOfficial && (
@@ -181,16 +224,15 @@ export default function DeviceList({ userId }: { userId: string }) {
                                 </span>
                             )}
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            isConnected ? 'bg-green-100 text-green-800' :
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-green-100 text-green-800' :
                             isQRReady ? 'bg-blue-100 text-blue-800' :
-                            isCreated ? 'bg-gray-100 text-gray-800' :
-                            'bg-red-50 text-red-600'
-                        }`}>
+                                isCreated ? 'bg-gray-100 text-gray-800' :
+                                    'bg-red-50 text-red-600'
+                            }`}>
                             {isConnected ? 'Connected' :
-                             isQRReady ? 'QR Ready' :
-                             isCreated ? 'Created' :
-                             'Disconnected'}
+                                isQRReady ? 'QR Ready' :
+                                    isCreated ? 'Created' :
+                                        'Disconnected'}
                         </span>
                     </div>
                     <p className="text-sm text-gray-500 mb-2">{device.device_type}</p>
@@ -272,8 +314,9 @@ export default function DeviceList({ userId }: { userId: string }) {
                     </button>
                     <button
                         onClick={handleAddDevice}
-                        disabled={actionLoading}
+                        disabled={actionLoading || unofficialDevices.length >= 5}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                        title={unofficialDevices.length >= 5 ? "Maximum limit of 5 devices reached" : ""}
                     >
                         {actionLoading ? 'Adding...' : '+ Add Device'}
                     </button>
@@ -289,8 +332,8 @@ export default function DeviceList({ userId }: { userId: string }) {
                     <section className="space-y-4">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-lg font-semibold text-gray-800">📱 Unofficial Devices (Web / QR)</h3>
-                            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                {unofficialDevices.length} device{unofficialDevices.length === 1 ? '' : 's'}
+                            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full font-medium">
+                                {unofficialDevices.length} / 5 devices
                             </span>
                         </div>
                         {unofficialDevices.length === 0 ? (
@@ -299,7 +342,8 @@ export default function DeviceList({ userId }: { userId: string }) {
                                 <div className="text-sm text-gray-500">No unofficial devices connected.</div>
                                 <button
                                     onClick={handleAddDevice}
-                                    className="mt-3 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                                    disabled={unofficialDevices.length >= 5}
+                                    className="mt-3 text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     + Add Unofficial Device
                                 </button>

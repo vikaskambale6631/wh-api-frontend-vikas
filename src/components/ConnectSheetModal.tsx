@@ -15,28 +15,28 @@ const ConnectSheetModal: React.FC<ConnectSheetModalProps> = ({
   const [formData, setFormData] = useState({
     sheet_name: '',
     spreadsheet_id: '',
-    worksheet_name: 'Sheet1', // Default worksheet name
+    worksheet_name: '', // Optional
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.sheet_name || !formData.spreadsheet_id || !formData.worksheet_name) {
-      setError('Please fill in all fields');
+
+    if (!formData.sheet_name || !formData.spreadsheet_id) {
+      setError('Please fill in required fields (Sheet Name & Spreadsheet ID)');
       return;
     }
 
     try {
       setLoading(true);
       setError(null);
-      
+
       await googleSheetService.connectSheet(formData);
-      
+
       // Reset form
-      setFormData({ sheet_name: '', spreadsheet_id: '', worksheet_name: 'Sheet1' });
-      
+      setFormData({ sheet_name: '', spreadsheet_id: '', worksheet_name: '' });
+
       // Notify parent
       onSheetConnected();
       onClose();
@@ -108,7 +108,7 @@ const ConnectSheetModal: React.FC<ConnectSheetModalProps> = ({
               required
             />
             <p className="mt-1 text-xs text-gray-500">
-              Found in your Google Sheets URL: 
+              Found in your Google Sheets URL:
               https://docs.google.com/spreadsheets/d/[SPREADSHEET_ID]/edit
             </p>
           </div>
@@ -124,11 +124,10 @@ const ConnectSheetModal: React.FC<ConnectSheetModalProps> = ({
               value={formData.worksheet_name}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., Sheet1"
-              required
+              placeholder="e.g., Sheet1 (Optional, auto-detects first sheet)"
             />
             <p className="mt-1 text-xs text-gray-500">
-              The name of the specific worksheet/tab within your spreadsheet
+              Leave blank to automatically connect to the first available worksheet in your spreadsheet.
             </p>
           </div>
 
@@ -153,8 +152,8 @@ const ConnectSheetModal: React.FC<ConnectSheetModalProps> = ({
 
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <div className="text-blue-800 text-sm">
-            <strong>Note:</strong> Make sure your Google Sheet is publicly accessible or 
-            shared with the service account. You'll need to set up OAuth credentials 
+            <strong>Note:</strong> Make sure your Google Sheet is publicly accessible or
+            shared with the service account. You'll need to set up OAuth credentials
             for production use.
           </div>
         </div>

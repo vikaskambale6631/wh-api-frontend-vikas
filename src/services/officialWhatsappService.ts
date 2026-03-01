@@ -136,6 +136,28 @@ export const officialWhatsappService = {
             params: { limit }
         });
         return response.data;
+    },
+
+    // Send Media Message (Image / Video / Document)
+    sendMediaMessage: async (to: string, file: File | string, caption: string, token: string) => {
+        const formData = new FormData();
+        formData.append("to_number", to);
+        if (typeof file === "string") {
+            formData.append("file_path", file);
+        } else {
+            formData.append("file", file);
+        }
+        if (caption) {
+            formData.append("caption", caption);
+        }
+
+        const response = await axios.post(`${API_URL}/send-media`, formData, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                // Do NOT set Content-Type — axios auto-sets multipart boundary
+            }
+        });
+        return response.data;
     }
 };
 

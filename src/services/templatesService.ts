@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '@/config/api';
 
-const API_URL = API_BASE_URL;
+const API_URL = `${API_BASE_URL}/official-whatsapp`;
 
 export interface Template {
     id: number;
@@ -24,16 +24,32 @@ export interface CreateTemplateRequest {
     meta_template_id?: string;
 }
 
+export interface SyncResult {
+    success: boolean;
+    message: string;
+    data?: { count: number };
+    error_message?: string;
+}
+
 const templatesService = {
     getTemplates: async (token: string): Promise<Template[]> => {
-        const response = await axios.get(`${API_URL}/official-whatsapp/config/templates`, {
+        const response = await axios.get(`${API_URL}/config/templates`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        // Ensure we always return an array
+        const data = response.data;
+        return Array.isArray(data) ? data : [];
+    },
+
+    createTemplate: async (token: string, templateData: CreateTemplateRequest): Promise<Template> => {
+        const response = await axios.post(`${API_URL}/config/templates`, templateData, {
             headers: { Authorization: `Bearer ${token}` }
         });
         return response.data;
     },
 
-    createTemplate: async (token: string, templateData: CreateTemplateRequest): Promise<Template> => {
-        const response = await axios.post(`${API_URL}/official-whatsapp/config/templates`, templateData, {
+    syncTemplates: async (token: string): Promise<SyncResult> => {
+        const response = await axios.post(`${API_URL}/config/sync-templates`, {}, {
             headers: { Authorization: `Bearer ${token}` }
         });
         return response.data;
