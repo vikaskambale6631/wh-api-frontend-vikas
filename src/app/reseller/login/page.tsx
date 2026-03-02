@@ -25,6 +25,7 @@ export default function ResellerLoginPage() {
             const response = await resellerService.login(formData)
             // Store token and user details
             localStorage.setItem("resellerToken", response.access_token)
+            localStorage.setItem("refreshToken", response.refresh_token) // Added Refresh Token
             localStorage.setItem("user_role", "reseller")
             if (response.reseller?.reseller_id) {
                 localStorage.setItem("reseller_id", response.reseller.reseller_id)

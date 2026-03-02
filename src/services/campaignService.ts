@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from '@/config/axios';
 
 // Try to use environment variable, fallback to localhost for development
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';

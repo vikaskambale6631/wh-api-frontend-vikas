@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from '@/config/axios';
 import { API_BASE_URL } from '@/config/api';
 
 // Ensure this matches your backend URL.

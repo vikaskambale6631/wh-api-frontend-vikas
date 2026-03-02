@@ -41,6 +41,7 @@ function LoginPageContent() {
                 // Store token
                 localStorage.setItem("token", data.access_token)
                 localStorage.setItem("resellerToken", data.access_token)
+                localStorage.setItem("refreshToken", data.refresh_token) // Added Refresh Token
                 localStorage.setItem("user_role", data.reseller.role)
                 localStorage.setItem("user_id", data.reseller.reseller_id)
                 localStorage.setItem("reseller_id", data.reseller.reseller_id)
@@ -55,6 +56,7 @@ function LoginPageContent() {
                 data = await businessService.login(formData)
                 // Store token
                 localStorage.setItem("token", data.access_token)
+                localStorage.setItem("refreshToken", data.refresh_token) // Added Refresh Token
                 localStorage.setItem("user_role", data.busi_user.role)
                 localStorage.setItem("user_id", data.busi_user.busi_user_id)
 

@@ -14,27 +14,9 @@
  */
 
 import { API_BASE_URL } from "@/config/api";
-import axios from "axios";
+import axios from "@/config/axios";
 
-const UNOFFICIAL_BASE = `${API_BASE_URL}/unofficial`;
-
-const getAuthHeaders = () => {
-    if (typeof window === "undefined") return {};
-    const token =
-        localStorage.getItem("token") ||
-        localStorage.getItem("accessToken") ||
-        (localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!).token : null);
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
-const api = axios.create({
-    baseURL: API_BASE_URL,
-});
-
-api.interceptors.request.use((config) => {
-    Object.assign(config.headers, getAuthHeaders());
-    return config;
-});
+const UNOFFICIAL_BASE = `/unofficial`;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -73,14 +55,12 @@ async function postJSON<T = any>(
     endpoint: string,
     body: Record<string, any>
 ): Promise<T> {
-    const res = await fetch(`${UNOFFICIAL_BASE}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(parseApiError(res.status, data));
-    return data as T;
+    try {
+        const res = await axios.post(`${UNOFFICIAL_BASE}${endpoint}`, body);
+        return res.data;
+    } catch (error: any) {
+        throw new Error(parseApiError(error.response?.status || 500, error.response?.data || {}));
+    }
 }
 
 /** Generic POST with FormData body */
@@ -89,13 +69,12 @@ async function postForm<T = any>(
     fields: Record<string, string | boolean | number>
 ): Promise<T> {
     const fd = buildFormData(fields);
-    const res = await fetch(`${UNOFFICIAL_BASE}${endpoint}`, {
-        method: "POST",
-        body: fd, // browser sets Content-Type with boundary automatically
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(parseApiError(res.status, data));
-    return data as T;
+    try {
+        const res = await axios.post(`${UNOFFICIAL_BASE}${endpoint}`, fd);
+        return res.data;
+    } catch (error: any) {
+        throw new Error(parseApiError(error.response?.status || 500, error.response?.data || {}));
+    }
 }
 
 /** Generic GET with query params */
@@ -103,11 +82,12 @@ async function getQuery<T = any>(
     endpoint: string,
     params: Record<string, string>
 ): Promise<T> {
-    const qs = new URLSearchParams(params).toString();
-    const res = await fetch(`${UNOFFICIAL_BASE}${endpoint}?${qs}`);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(parseApiError(res.status, data));
-    return data as T;
+    try {
+        const res = await axios.get(`${UNOFFICIAL_BASE}${endpoint}`, { params });
+        return res.data;
+    } catch (error: any) {
+        throw new Error(parseApiError(error.response?.status || 500, error.response?.data || {}));
+    }
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -231,7 +211,7 @@ const unofficialApiService = {
             wait_for_delivery: waitForDelivery,
             max_wait_time: maxWaitTime,
         };
-        const response = await api.post("/unofficial/bulk-send-messages", payload);
+        const response = await axios.post("/unofficial/bulk-send-messages", payload);
         return response.data;
     },
 
