@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { googleSheetService, GoogleSheet } from "@/services/googleSheetService";
 import { deviceService, Device } from "@/services/deviceService";
+import { campaignService } from "@/services/campaignService";
 
 export default function BulkMessagingPage() {
     const [sheets, setSheets] = useState<GoogleSheet[]>([]);
@@ -32,6 +33,68 @@ export default function BulkMessagingPage() {
     const [loadingConfig, setLoadingConfig] = useState(true);
     const [sending, setSending] = useState(false);
     const [status, setStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+    const [campaignStatus, setCampaignStatus] = useState<any>(null);
+    const [campaignLogs, setCampaignLogs] = useState<any[]>([]);
+    const [isActionLoading, setIsActionLoading] = useState(false);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (activeCampaignId) {
+            interval = setInterval(async () => {
+                try {
+                    const statusData = await campaignService.getCampaignStatus(activeCampaignId);
+                    setCampaignStatus(statusData);
+
+                    try {
+                        const logsData = await campaignService.getCampaignLogs(activeCampaignId);
+                        if (logsData && logsData.logs) {
+                            setCampaignLogs(logsData.logs);
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch logs", e);
+                    }
+
+                    if (statusData.status === "Completed" || statusData.status === "Failed") {
+                        setActiveCampaignId(null);
+                        setSending(false);
+                        setStatus({ type: "success", text: `Campaign finished! Sent: ${statusData.sent_count}, Failed: ${statusData.failed_count}` });
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch status", e);
+                }
+            }, 2000);
+        }
+        return () => clearInterval(interval);
+    }, [activeCampaignId]);
+
+    const handlePauseCampaign = async () => {
+        if (!activeCampaignId) return;
+        setIsActionLoading(true);
+        try {
+            await campaignService.pauseCampaign(activeCampaignId);
+            setStatus({ type: "success", text: "Campaign paused successfully." });
+            setCampaignStatus((prev: any) => ({ ...prev, status: "Paused" }));
+        } catch (error: any) {
+            setStatus({ type: "error", text: error.message || "Failed to pause campaign." });
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const handleResumeCampaign = async () => {
+        if (!activeCampaignId) return;
+        setIsActionLoading(true);
+        try {
+            await campaignService.resumeCampaign(activeCampaignId);
+            setStatus({ type: "success", text: "Campaign resumed successfully." });
+            setCampaignStatus((prev: any) => ({ ...prev, status: "Running" }));
+        } catch (error: any) {
+            setStatus({ type: "error", text: error.message || "Failed to resume campaign." });
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
 
     useEffect(() => {
         loadInitialData();
@@ -65,8 +128,8 @@ export default function BulkMessagingPage() {
         );
     };
 
-    const handleTemplateChange = (id: number, value: string) => {
-        setTemplates(prev => prev.map(t => t.id === id ? { ...t, content: value } : t));
+    const handleTemplateChange = (id: number, field: string, value: string) => {
+        setTemplates(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
     };
 
     const isFormValid = () => {
@@ -90,27 +153,37 @@ export default function BulkMessagingPage() {
         setStatus(null);
 
         const filledTemplates = templates
-            .filter(t => t.content.trim().length > 0)
-            .map(t => t.content.trim());
+            .filter(t => t.content.trim().length > 0);
 
         const payload = {
             sheet_id: selectedSheetId,
-            devices: selectedDeviceIds,
-            templates: filledTemplates,
-            rotation_mode: "round_robin",
-            has_file: !!selectedFile,
-            file_name: selectedFile ? selectedFile.name : null
+            name: "Bulk Messaging UI Campaign",
+            device_ids: selectedDeviceIds,
+            templates: filledTemplates.map(t => ({
+                content: t.content.trim(),
+                delay_override: undefined
+            })),
         };
 
+        const formData = new FormData();
+        formData.append("payload", JSON.stringify(payload));
+        if (selectedFile) {
+            formData.append("file", selectedFile);
+        }
+
         try {
-            // In a real scenario we'd call the /api/bulk-send endpoint.
-            // E.g., const response = await fetch('/api/bulk-send', { ... })
-            console.log("Payload to send:", payload);
+            console.log("Creating campaign with FormData:", payload);
+            const campaignData = await campaignService.createCampaign(formData);
+            const campaignId = campaignData?.id;
 
-            // Simulating API call
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            if (campaignId) {
+                console.log("Campaign created, starting campaign:", campaignId);
+                await campaignService.startCampaign(campaignId);
+                setActiveCampaignId(campaignId);
+                setCampaignStatus({ total_recipients: 0, sent_count: 0, failed_count: 0, status: "Starting..." });
+            }
 
-            setStatus({ type: "success", text: "Campaign started successfully! Messages are being dispatched." });
+            setStatus({ type: "success", text: "Campaign created and started successfully! Tracking progress..." });
 
             // Optional: Reset form on success
             // setSelectedSheetId("");
@@ -139,6 +212,96 @@ export default function BulkMessagingPage() {
                     <div className={`p-4 rounded-xl flex items-center gap-3 ${status.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
                         {status.type === 'success' ? <CheckCircle className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
                         <p className="font-medium text-sm">{status.text}</p>
+                    </div>
+                )}
+
+                {/* Progress Details Card */}
+                {campaignStatus && (
+                    <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-emerald-100 flex flex-col gap-4">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-gray-800">Campaign Progress</h2>
+                            <div className="flex items-center gap-2">
+                                {campaignStatus.status === "Running" && (
+                                    <button
+                                        onClick={handlePauseCampaign}
+                                        disabled={isActionLoading}
+                                        className="px-3 py-1 text-xs font-bold bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors cursor-pointer"
+                                    >
+                                        PAUSE
+                                    </button>
+                                )}
+                                {campaignStatus.status === "Paused" && (
+                                    <button
+                                        onClick={handleResumeCampaign}
+                                        disabled={isActionLoading}
+                                        className="px-3 py-1 text-xs font-bold bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200 transition-colors cursor-pointer"
+                                    >
+                                        RESUME
+                                    </button>
+                                )}
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${campaignStatus.status === 'Running' ? 'bg-emerald-100 text-emerald-800' : campaignStatus.status === 'Paused' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-800'}`}>
+                                    {campaignStatus.status}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-center mt-2">
+                            <div className="bg-gray-50 p-4 rounded-xl">
+                                <p className="text-xs text-gray-500 uppercase font-bold">Total</p>
+                                <p className="text-2xl font-bold text-gray-800">{campaignStatus.total_recipients}</p>
+                            </div>
+                            <div className="bg-emerald-50 p-4 rounded-xl">
+                                <p className="text-xs text-emerald-600 uppercase font-bold">Sent</p>
+                                <p className="text-2xl font-bold text-emerald-700">{campaignStatus.sent_count}</p>
+                            </div>
+                            <div className="bg-red-50 p-4 rounded-xl">
+                                <p className="text-xs text-red-600 uppercase font-bold">Failed</p>
+                                <p className="text-2xl font-bold text-red-700">{campaignStatus.failed_count}</p>
+                            </div>
+                        </div>
+                        {activeCampaignId && (
+                            <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                <div className="bg-emerald-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((campaignStatus.sent_count + campaignStatus.failed_count) / Math.max(1, campaignStatus.total_recipients)) * 100)}%` }}></div>
+                            </div>
+                        )}
+
+                        {/* Message Logs Table */}
+                        {campaignLogs.length > 0 && (
+                            <div className="mt-6 border-t border-emerald-50 pt-6">
+                                <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <MessageSquare size={16} className="text-emerald-600" />
+                                    Live Message Logs
+                                </h3>
+                                <div className="max-h-60 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50">
+                                    <table className="min-w-full text-left text-xs">
+                                        <thead className="bg-white sticky top-0 border-b border-gray-100">
+                                            <tr>
+                                                <th className="px-4 py-3 font-semibold text-gray-500">Recipient</th>
+                                                <th className="px-4 py-3 font-semibold text-gray-500">Status</th>
+                                                <th className="px-4 py-3 font-semibold text-gray-500">Retries</th>
+                                                <th className="px-4 py-3 font-semibold text-gray-500">Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 bg-white">
+                                            {campaignLogs.map((log: any) => (
+                                                <tr key={log.id} className="hover:bg-gray-50/50">
+                                                    <td className="px-4 py-3 text-gray-700 font-mono">{log.recipient}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${log.status.toUpperCase() === 'SENT' ? 'bg-emerald-100 text-emerald-700' :
+                                                            log.status.toUpperCase() === 'FAILED' ? 'bg-red-100 text-red-700' :
+                                                                'bg-amber-100 text-amber-700'
+                                                            }`}>
+                                                            {log.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-gray-500">{log.retry_count}</td>
+                                                    <td className="px-4 py-3 text-gray-400 font-mono">{new Date(log.created_at).toLocaleTimeString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -310,20 +473,24 @@ export default function BulkMessagingPage() {
 
                             <div className="space-y-4">
                                 {templates.map((template, idx) => (
-                                    <div key={template.id} className="relative">
-                                        <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] uppercase font-bold text-purple-600 z-10">
-                                            Template {template.id}
-                                        </label>
-                                        <textarea
-                                            value={template.content}
-                                            onChange={(e) => handleTemplateChange(template.id, e.target.value)}
-                                            placeholder={`Enter message variation ${idx + 1} ...`}
-                                            rows={2}
-                                            className="w-full pt-4 pb-3 px-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-sm resize-none bg-gray-50/30 focus:bg-white relative z-0"
-                                        />
+                                    <div key={template.id} className="space-y-2 p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+                                        <div className="relative">
+                                            <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] uppercase font-bold text-purple-600 z-10">
+                                                Template {template.id} - Message Content
+                                            </label>
+                                            <textarea
+                                                value={template.content}
+                                                onChange={(e) => handleTemplateChange(template.id, 'content', e.target.value)}
+                                                placeholder={`Enter message variation ${idx + 1} ...`}
+                                                rows={2}
+                                                className="w-full pt-4 pb-3 px-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-sm resize-none bg-white relative z-0"
+                                            />
+                                        </div>
+
                                     </div>
                                 ))}
                             </div>
+
                             {!templates.some(t => t.content.trim().length > 0) && (
                                 <p className="text-xs text-red-500 mt-4 ml-1">* At least 1 message template must be filled.</p>
                             )}
