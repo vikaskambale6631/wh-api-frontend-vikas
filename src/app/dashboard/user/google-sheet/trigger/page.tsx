@@ -29,7 +29,9 @@ export default function OfficialTriggerPage() {
         phone_column: "",
         trigger_column: "",
         trigger_value: "",
-        status_column: "Status"
+        status_column: "Status",
+        send_time_column: "", // NEW: Send_time column for time-based triggers
+        message_column: "" // NEW: Message column to get message content from sheet
     });
     const [saving, setSaving] = useState(false);
 
@@ -52,8 +54,10 @@ export default function OfficialTriggerPage() {
                 console.error("No user ID found in localStorage");
                 return;
             }
-            const data = await deviceService.getDevices(userId);
-            setDevices(data);
+            const data = await deviceService.getUnofficialDevices(userId);
+            // Filter to show only connected devices
+            const connectedDevices = data.filter(device => device.session_status === 'connected');
+            setDevices(connectedDevices);
         } catch (error) {
             console.error("Failed to load devices", error);
         }
@@ -97,11 +101,19 @@ export default function OfficialTriggerPage() {
                 const statusCol = res.headers.find((c: string) =>
                     c.toLowerCase().includes('status') || c.toLowerCase().includes('state')
                 );
+                const sendTimeCol = res.headers.find((c: string) =>
+                    c.toLowerCase().includes('send_time') || c.toLowerCase().includes('time')
+                );
+                const messageCol = res.headers.find((c: string) =>
+                    c.toLowerCase().includes('message') || c.toLowerCase().includes('text')
+                );
 
                 setTriggerConfig(prev => ({
                     ...prev,
                     phone_column: phoneCol || "",
-                    status_column: statusCol || "Status"
+                    status_column: statusCol || "Status",
+                    send_time_column: sendTimeCol || "",
+                    message_column: messageCol || ""
                 }));
             }
         } catch (error) {
@@ -131,8 +143,14 @@ export default function OfficialTriggerPage() {
     };
 
     const handleSaveTrigger = async () => {
-        if (!selectedSheetId || !triggerConfig.text_message || !selectedDeviceId) {
-            alert("Please fill all required fields, including text message and device");
+        if (!selectedSheetId || !selectedDeviceId) {
+            alert("Please select a sheet and device");
+            return;
+        }
+
+        // Text message is optional - check if either text message or message column is provided
+        if (!triggerConfig.text_message && !triggerConfig.message_column) {
+            alert("Please provide either a text message or select a message column");
             return;
         }
 
@@ -147,10 +165,12 @@ export default function OfficialTriggerPage() {
                 trigger_type: triggerConfig.trigger_type,
                 is_enabled: triggerConfig.is_enabled,
                 phone_column: triggerConfig.phone_column,
-                message_template: triggerConfig.text_message, // using unofficial raw string template
+                message_template: triggerConfig.text_message || "", // using unofficial raw string template
                 trigger_column: triggerConfig.trigger_column,
                 trigger_value: triggerConfig.trigger_value,
                 status_column: triggerConfig.status_column,
+                send_time_column: triggerConfig.send_time_column, // NEW: Send time column
+                message_column: triggerConfig.message_column, // NEW: Message column
                 // Extra fields stored in DB dynamically or parsed depending on your API
                 device_id: device?.device_id || selectedDeviceId
             };
@@ -165,7 +185,9 @@ export default function OfficialTriggerPage() {
                 phone_column: "",
                 trigger_column: "",
                 trigger_value: "",
-                status_column: "Status"
+                status_column: "Status",
+                send_time_column: "",
+                message_column: ""
             });
             setSelectedSheetId("");
             setSelectedDeviceId("");
@@ -278,20 +300,46 @@ export default function OfficialTriggerPage() {
                             </select>
                         </div>
 
-                        {/* Text Message Input */}
+                        {/* Text Message Input - OPTIONAL */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Text Message / Caption</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Text Message / Caption <span className="text-gray-400">(Optional)</span>
+                            </label>
                             <textarea
                                 value={triggerConfig.text_message}
                                 onChange={(e) => setTriggerConfig(prev => ({ ...prev, text_message: e.target.value }))}
                                 className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
                                 rows={4}
-                                placeholder="Enter your message here. Use {{ColumnName}} to insert sheet data."
+                                placeholder="Enter your message here (optional). Use {{ColumnName}} to insert sheet data."
                             />
                             <p className="mt-1 text-xs text-gray-500">
-                                Example: Hello {"{{Name}}"}, your document is attached!
+                                Optional: You can use Message column instead or combine both
                             </p>
                         </div>
+
+                        {/* Message Column Selection */}
+                        {columns.length > 0 && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Message Column <span className="text-gray-400">(Optional)</span>
+                                </label>
+                                <select 
+                                    value={triggerConfig.message_column} 
+                                    onChange={(e) => setTriggerConfig(prev => ({ ...prev, message_column: e.target.value }))} 
+                                    className="w-full p-2 border border-gray-300 rounded-md"
+                                >
+                                    <option value="">Select message column (optional)</option>
+                                    {columns.map((column) => (
+                                        <option key={column} value={column}>
+                                            {column}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-1 text-xs text-gray-500">
+                                    Get message content from this column instead of template
+                                </p>
+                            </div>
+                        )}
 
                         {/* Trigger Type */}
                         <div>
@@ -358,6 +406,55 @@ export default function OfficialTriggerPage() {
                             </div>
                         )}
 
+                        {/* Time-based Trigger Options */}
+                        {triggerConfig.trigger_type === 'time' && columns.length > 0 && (
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Send Time Column <span className="text-red-500">*</span>
+                                    </label>
+                                    <select 
+                                        value={triggerConfig.send_time_column} 
+                                        onChange={(e) => setTriggerConfig(prev => ({ ...prev, send_time_column: e.target.value }))} 
+                                        className="w-full p-2 border border-gray-300 rounded-md"
+                                        required
+                                    >
+                                        <option value="">Select Send_time column</option>
+                                        {columns.map((column) => (
+                                            <option key={column} value={column}>
+                                                {column}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Column containing scheduled send time (e.g., Send_time)
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Status Column <span className="text-red-500">*</span>
+                                    </label>
+                                    <select 
+                                        value={triggerConfig.status_column} 
+                                        onChange={(e) => setTriggerConfig(prev => ({ ...prev, status_column: e.target.value }))} 
+                                        className="w-full p-2 border border-gray-300 rounded-md"
+                                        required
+                                    >
+                                        <option value="">Select status column</option>
+                                        {columns.map((column) => (
+                                            <option key={column} value={column}>
+                                                {column}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Column to track message status (Sent/Failed)
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
 
 
                         {/* Enable Trigger */}
@@ -374,7 +471,9 @@ export default function OfficialTriggerPage() {
                         {/* Save Button */}
                         <button
                             onClick={handleSaveTrigger}
-                            disabled={saving || !selectedSheetId || !triggerConfig.text_message || !selectedDeviceId}
+                            disabled={saving || !selectedSheetId || !selectedDeviceId || 
+                                (triggerConfig.trigger_type === 'time' && (!triggerConfig.send_time_column || !triggerConfig.status_column)) ||
+                                (triggerConfig.trigger_type !== 'time' && !triggerConfig.text_message && !triggerConfig.message_column)}
                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             <Save className="w-4 h-4" />

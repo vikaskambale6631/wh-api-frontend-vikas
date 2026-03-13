@@ -32,7 +32,7 @@ export const deviceService = {
             const response = await axios.get(`${API_URL}/api/devices/`, {
                 params: { user_id: userId, session_status: status }
             });
-            return response.data.devices || [];
+            return response.data || [];
         } catch (error) {
             console.error('Failed to fetch devices:', error);
             throw error;

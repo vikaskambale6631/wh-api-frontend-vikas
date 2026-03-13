@@ -23,6 +23,7 @@ export interface InboxMessage {
     incoming_message: string;
     incoming_time: string;
     is_replied: boolean;
+    is_outgoing: boolean;       // true = WE sent this message
     reply_message?: string;
     reply_time?: string;
     device_name?: string;
@@ -30,11 +31,47 @@ export interface InboxMessage {
     unread?: boolean;
 }
 
+export interface DeviceInfo {
+    device_id: string;
+    device_name: string;
+    session_status: string;
+    is_connected: boolean;
+    unread_count?: number;
+    message_count?: number;
+}
+
 export const replyService = {
-    getInbox: async (): Promise<InboxMessage[]> => {
-        const response = await axios.get(`${API_URL}/replies`, { headers: getAuthHeaders() });
-        // Handle wrapper object { success: true, data: [...] }
-        return response.data.data || response.data;
+    getInbox: async (deviceId?: string): Promise<InboxMessage[]> => {
+        const url = deviceId
+            ? `${API_URL}/replies?device_id=${deviceId}`
+            : `${API_URL}/replies`;
+        try {
+            const response = await axios.get(url, { headers: getAuthHeaders() });
+            // Handle wrapper object { success: true, data: [...] }
+            const data = response.data?.data || response.data;
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            console.error("Error in getInbox service:", error);
+            return [];
+        }
+    },
+
+    getChatSummary: async (deviceId?: string): Promise<any[]> => {
+        const url = deviceId
+            ? `${API_URL}/replies/chat-summary?device_id=${deviceId}`
+            : `${API_URL}/replies/chat-summary`;
+        try {
+            const response = await axios.get(url, { headers: getAuthHeaders() });
+            return response.data.data || [];
+        } catch (error) {
+            console.error("Error fetching chat summary:", error);
+            return [];
+        }
+    },
+
+    getActiveDevices: async (): Promise<DeviceInfo[]> => {
+        const response = await axios.get(`${API_URL}/replies/active-devices`, { headers: getAuthHeaders() });
+        return response.data.data || [];
     },
 
     sendReply: async (messageId: string, phone: string, deviceId: string, text: string) => {
@@ -51,9 +88,12 @@ export const replyService = {
         return response.data;
     },
 
-    markAsRead: async (phoneNumber: string) => {
+    markAsRead: async (phoneNumber: string, deviceId?: string) => {
         const response = await axios.post(`${API_URL}/replies/mark-read`,
-            { phone_number: phoneNumber },
+            {
+                phone_number: phoneNumber,
+                device_id: deviceId
+            },
             { headers: getAuthHeaders() }
         );
         return response.data;

@@ -142,6 +142,9 @@ export const googleSheetService = {
         schedule_column?: string;
         webhook_url?: string;
         execution_interval?: number;
+        send_time_column?: string;
+        message_column?: string;
+        device_id?: string;
     }) => {
         const payload = {
             sheet_id: sheetId, // Add required sheet_id field
