@@ -12,8 +12,11 @@ export default function CreditUsagePage() {
     const [isLoading, setIsLoading] = useState(true)
     const [logs, setLogs] = useState<MessageUsageLog[]>([])
     const [currentBalance, setCurrentBalance] = useState<number | null>(null)
-    const [startDate, setStartDate] = useState("")
-    const [endDate, setEndDate] = useState("")
+    
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0]
+    const [startDate, setStartDate] = useState(today)
+    const [endDate, setEndDate] = useState(today)
     const [error, setError] = useState("")
     const [summary, setSummary] = useState<{ 
         total_usage: number, 
@@ -47,11 +50,16 @@ export default function CreditUsagePage() {
                 return
             }
 
-            // Fetch concurrently
+            // Default to today's date if no filters set
+            const today = new Date().toISOString().split('T')[0]
+            const start = startDate || today
+            const end = endDate || today
+
+            // Fetch today's usage logs by default
             const [logsData, balanceData, summaryData] = await Promise.all([
                 creditService.getMessageCreditUsage(token, {
-                    start_date: startDate ? new Date(startDate).toISOString() : undefined,
-                    end_date: endDate ? new Date(endDate).toISOString() : undefined,
+                    start_date: new Date(start).toISOString(),
+                    end_date: new Date(end + 'T23:59:59').toISOString(),
                     limit: 100
                 }),
                 creditService.getUserCurrentBalance(token),
@@ -61,7 +69,7 @@ export default function CreditUsagePage() {
             setLogs(logsData)
             setCurrentBalance(balanceData.current_balance)
             setSummary(summaryData)
-            console.log('Usage data fetched:', { logs: logsData.length, balance: balanceData, summary: summaryData })
+            console.log('Usage data fetched:', { logs: logsData.length, balance: balanceData, summary: summaryData, dateRange: `${start} to ${end}` })
 
         } catch (err: any) {
             console.error("Error fetching credit usage:", err)
@@ -180,7 +188,10 @@ export default function CreditUsagePage() {
                             />
                         </div>
                         <div className="md:col-span-2 flex justify-end">
-                            <Button variant="ghost" className="text-gray-500" onClick={() => { setStartDate(""); setEndDate(""); }}>
+                            <Button variant="ghost" className="text-gray-500" onClick={() => { 
+                                setStartDate(today); 
+                                setEndDate(today); 
+                            }}>
                                 Clear Filters
                             </Button>
                         </div>
@@ -244,7 +255,11 @@ export default function CreditUsagePage() {
                                 ) : !isLoading && (
                                     <tr>
                                         <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                                            No credit usage history found.
+                                            <div className="space-y-2">
+                                                <p className="text-lg font-medium">No messages sent today</p>
+                                                <p className="text-sm">Send messages to see credit usage history here</p>
+                                                <p className="text-xs text-gray-400">Try adjusting date filters to view older messages</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 )}
