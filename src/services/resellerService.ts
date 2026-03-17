@@ -25,6 +25,7 @@ export interface ResellerProfile {
 
 export interface BusinessData {
     business_name?: string;
+    organization_type?: string;
     business_description?: string;
     erp_system?: string;
     gstin?: string;

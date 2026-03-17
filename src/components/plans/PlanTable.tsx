@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plan } from "./PlanCard";
+import Link from "next/link";
 
 interface PlanTableProps {
     plans: Plan[];
@@ -56,9 +57,17 @@ export function PlanTable({ plans }: PlanTableProps) {
                             <TableCell className="text-muted-foreground">{plan.rate}</TableCell>
                             <TableCell>{plan.validity}</TableCell>
                             <TableCell className="text-right">
-                                <Button size="sm" variant={plan.isDemo ? "secondary" : "default"} disabled={plan.isDemo}>
-                                    {plan.isDemo ? "View" : "Select"}
-                                </Button>
+                                {plan.isDemo ? (
+                                    <Button size="sm" variant="secondary" disabled>
+                                        View
+                                    </Button>
+                                ) : (
+                                    <Link href={`/plans/checkout?planName=${encodeURIComponent(plan.name)}`}>
+                                        <Button size="sm" variant="default">
+                                            Select
+                                        </Button>
+                                    </Link>
+                                )}
                             </TableCell>
                         </TableRow>
                     ))}

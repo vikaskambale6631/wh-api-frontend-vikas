@@ -2,14 +2,15 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutGrid, User, Code, Puzzle, ShoppingCart, CreditCard, Users, History, LogOut, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { LayoutGrid, User, Code, ShoppingCart, CreditCard, Users, History, LogOut, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 const sidebarItems = [
     { icon: LayoutGrid, label: "Dashboard", href: "/dashboard/reseller/analytics", color: "text-blue-600" },
-    { icon: Code, label: "API", href: "/dashboard/reseller/api", color: "text-emerald-500" }, // Assuming API is also under reseller path now, or keep as /api if global
-    { icon: ShoppingCart, label: "My Orders", href: "/dashboard/reseller/orders", color: "text-indigo-600" },
+    { icon: User, label: "Profile", href: "/dashboard/reseller/profile", color: "text-purple-600" },
+    { icon: Code, label: "API", href: "https://documenter.getpostman.com/view/1240173/2sB3B8stEM", color: "text-emerald-500" },
+    { icon: ShoppingCart, label: "My Orders", href: "/dashboard/reseller/orders", color: "text-blue-500" },
     { icon: CreditCard, label: "Plans", href: "/dashboard/reseller/plans", color: "text-pink-600" },
     { icon: Users, label: "Users", href: "/dashboard/reseller/users", color: "text-teal-600" },
     { icon: History, label: "Activity History", href: "/dashboard/reseller/history", color: "text-cyan-600" },
@@ -43,7 +44,7 @@ export function Sidebar({ collapsed, toggleSidebar }: SidebarProps) {
                 collapsed ? "w-16" : "w-64"
             )}
         >
-            {/* Header section... */}
+            {/* Header section */}
             <div className="p-4 border-b flex items-center justify-between h-[65px]">
                 {!collapsed && (
                     <div className="flex items-center gap-2">
@@ -92,11 +93,14 @@ export function Sidebar({ collapsed, toggleSidebar }: SidebarProps) {
             <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
                 {sidebarItems.map((item) => {
                     const isActive = pathname === item.href
+                    const isExternal = item.href.startsWith("http")
 
                     return (
                         <Link
                             key={item.label}
                             href={item.href}
+                            target={isExternal ? "_blank" : undefined}
+                            rel={isExternal ? "noopener noreferrer" : undefined}
                             className={cn(
                                 "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors group",
                                 isActive

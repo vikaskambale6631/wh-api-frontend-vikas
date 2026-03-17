@@ -15,17 +15,35 @@ export default function CreditUsagePage() {
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
     const [error, setError] = useState("")
-    const [summary, setSummary] = useState<{ total_usage: number, latest_deduction: { credits: number, timestamp: string | null } } | null>(null)
+    const [summary, setSummary] = useState<{ 
+        total_usage: number, 
+        total_added: number,
+        latest_deduction: { credits: number, timestamp: string | null },
+        latest_transaction: { credits: number, timestamp: string | null, message_id: string | null }
+    } | null>(null)
 
     const fetchData = async () => {
         setIsLoading(true)
         setError("")
         try {
             const token = localStorage.getItem("token")
-            const userId = localStorage.getItem("user_id")
+            const userId = localStorage.getItem("user_id") || localStorage.getItem("reseller_id")
 
             if (!token || !userId) {
                 router.push("/login")
+                return
+            }
+
+            // First check if backend is running
+            try {
+                const healthResponse = await fetch('http://localhost:8000/health')
+                if (!healthResponse.ok) {
+                    throw new Error('Backend not healthy')
+                }
+            } catch (healthError: any) {
+                console.error('Backend health check failed:', healthError)
+                setError('Backend server is not running. Please start the backend server.')
+                setIsLoading(false)
                 return
             }
 
@@ -43,10 +61,15 @@ export default function CreditUsagePage() {
             setLogs(logsData)
             setCurrentBalance(balanceData.current_balance)
             setSummary(summaryData)
+            console.log('Usage data fetched:', { logs: logsData.length, balance: balanceData, summary: summaryData })
 
         } catch (err: any) {
             console.error("Error fetching credit usage:", err)
-            setError(err.response?.data?.message || err.message || "Failed to load credit history")
+            if (err.message?.includes('Failed to fetch')) {
+                setError('Backend server is not accessible. Please check if server is running.')
+            } else {
+                setError(err.response?.data?.message || err.message || "Failed to load credit history")
+            }
         } finally {
             setIsLoading(false)
         }
@@ -80,8 +103,27 @@ export default function CreditUsagePage() {
                     </div>
                 </div>
 
-                {/* Balance & Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Error Display */}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5 text-red-600" />
+                            <div>
+                                <h3 className="font-medium text-red-900">Connection Error</h3>
+                                <p className="text-red-700 text-sm mt-1">{error}</p>
+                            </div>
+                        </div>
+                        <Button onClick={fetchData} className="mt-3 bg-red-600 hover:bg-red-700">
+                            Try Again
+                        </Button>
+                    </div>
+                )}
+
+                {/* Content */}
+                {!error && (
+                    <>
+                        {/* Balance & Stats */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="bg-white p-6 rounded-xl border shadow-sm border-l-4 border-l-blue-500">
                         <p className="text-sm text-gray-500 font-medium mb-2">Current Balance</p>
                         <h3 className="text-3xl font-bold text-gray-900">
@@ -90,19 +132,28 @@ export default function CreditUsagePage() {
                         <p className="text-xs text-blue-600 mt-1 font-medium">Available Credits</p>
                     </div>
                     <div className="bg-white p-6 rounded-xl border shadow-sm">
-                        <p className="text-sm text-gray-500 font-medium mb-2">Total Usage (This Period)</p>
+                        <p className="text-sm text-gray-500 font-medium mb-2">Total Usage (Sent)</p>
                         <h3 className="text-3xl font-bold text-gray-900">
                             {summary?.total_usage ?? "---"}
                         </h3>
-                        <p className="text-xs text-gray-400 mt-1">Credits Deducted</p>
+                        <p className="text-xs text-red-400 mt-1">Credits Deducted</p>
                     </div>
                     <div className="bg-white p-6 rounded-xl border shadow-sm">
-                        <p className="text-sm text-gray-500 font-medium mb-2">Latest Deduction</p>
-                        <h3 className="text-xl font-bold text-gray-900">
-                            {summary?.latest_deduction?.timestamp ? new Date(summary.latest_deduction.timestamp).toLocaleDateString() : "N/A"}
+                        <p className="text-sm text-gray-500 font-medium mb-2">Total Added</p>
+                        <h3 className="text-3xl font-bold text-gray-900">
+                            {summary?.total_added ?? "---"}
                         </h3>
-                        <p className="text-xs text-gray-400 mt-1">
-                            {summary?.latest_deduction?.timestamp ? new Date(summary.latest_deduction.timestamp).toLocaleTimeString() : ""}
+                        <p className="text-xs text-emerald-500 mt-1">Credits Recharged</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl border shadow-sm">
+                        <p className="text-sm text-gray-500 font-medium mb-2">Latest Activity</p>
+                        <h3 className="text-xl font-bold text-gray-900">
+                            {summary?.latest_transaction?.timestamp ? new Date(summary.latest_transaction.timestamp).toLocaleDateString() : "N/A"}
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-1 font-medium italic">
+                            {summary?.latest_transaction?.credits !== undefined ? (
+                                summary.latest_transaction.credits > 0 ? `Deducted: ${summary.latest_transaction.credits}` : `Added: ${Math.abs(summary.latest_transaction.credits)}`
+                            ) : ""}
                         </p>
                     </div>
                 </div>
@@ -144,13 +195,13 @@ export default function CreditUsagePage() {
                                 <tr>
                                     <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">DATE & TIME</th>
                                     <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">Message ID</th>
-                                    <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">Credits Deducted</th>
+                                    <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">Credits Change</th>
                                     <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">Balance After</th>
                                     <th className="px-6 py-4 font-semibold text-gray-500 uppercase tracking-wider text-xs text-right">Reference</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y relative">
-                                {isLoading && (
+                                {isLoading && !logs.length && (
                                     <tr>
                                         <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                                             Loading history...
@@ -164,7 +215,7 @@ export default function CreditUsagePage() {
                                                 <div className="font-medium text-gray-900">
                                                     {new Date(log.timestamp).toLocaleDateString()}
                                                 </div>
-                                                <div className="text-gray-500 text-xs">
+                                                <div className="text-gray-500 text-xs text-nowrap">
                                                     {new Date(log.timestamp).toLocaleTimeString()}
                                                 </div>
                                             </td>
@@ -172,12 +223,18 @@ export default function CreditUsagePage() {
                                                 {log.message_id}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800">
-                                                    -{log.credits_deducted}
-                                                </span>
+                                                {log.credits_deducted > 0 ? (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black bg-red-50 text-red-600 border border-red-100">
+                                                        -{log.credits_deducted}
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                        +{Math.abs(log.credits_deducted)}
+                                                    </span>
+                                                )}
                                             </td>
-                                            <td className="px-6 py-4 font-bold text-gray-700">
-                                                {log.balance_after}
+                                            <td className="px-6 py-4 font-black text-gray-700">
+                                                {log.balance_after.toLocaleString()}
                                             </td>
                                             <td className="px-6 py-4 text-right text-gray-400 text-xs font-mono">
                                                 {log.usage_id.substring(0, 14)}...
@@ -202,6 +259,8 @@ export default function CreditUsagePage() {
                         </table>
                     </div>
                 </div>
+                    </>
+                )}
             </div>
         </DashboardLayout>
     )

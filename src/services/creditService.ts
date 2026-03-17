@@ -136,6 +136,38 @@ const creditService = {
             }
         );
         return response.data;
+    },
+
+    purchasePlan: async (data: { plan_name: string, credits: number, price: number }, token: string) => {
+        const response = await axios.post(
+            `${API_URL}/v1/credits/purchase-plan`,
+            data,
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            }
+        );
+        return response.data;
+    },
+
+    initiatePayment: async (data: { plan_name: string, credits: number, price: number }, token: string) => {
+        const response = await axios.post(
+            `${API_URL}/v1/credits/initiate-payment`,
+            data,
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            }
+        );
+        return response.data;
+    },
+    verifyPayment: async (data: { razorpay_payment_id: string, razorpay_order_id: string, razorpay_signature: string }, token: string) => {
+        const response = await axios.post(
+            `${API_URL}/v1/credits/payment-callback`,
+            data,
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            }
+        );
+        return response.data;
     }
 };
 

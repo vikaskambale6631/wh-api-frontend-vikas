@@ -2,302 +2,389 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, ShieldCheck, History } from "lucide-react"
+import { ShieldCheck, History, User, Building2, Layout, Lock, Save, X, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import resellerService from "@/services/resellerService"
-import { BusinessProfile } from "@/services/businessService"
+import { cn } from "@/lib/utils"
 
 interface ProfileProps {
-    data: BusinessProfile | null;
+    data: any | null;
+    onUpdate?: (updatedData: any) => Promise<void>;
 }
 
-export function ProfileHeader({ data }: ProfileProps) {
+export function ProfileHeader({ data }: { data: any }) {
     if (!data) return null;
 
-    // Get initials
-    const name = data.profile.name || data.profile.username || "User";
+    const name = data.profile?.name || data.profile?.username || "User";
     const initials = name
         .split(' ')
-        .map(n => n[0])
+        .map((n: string) => n[0])
         .join('')
         .toUpperCase()
         .substring(0, 2);
 
     return (
-        <div className="flex items-start justify-between">
-            <div className="flex gap-4">
+        <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-4">
                 <div className="relative">
-                    <Avatar className="h-16 w-16 bg-blue-600 text-white">
-                        <AvatarFallback className="text-xl font-medium bg-blue-600">{initials}</AvatarFallback>
+                    <Avatar className="h-16 w-16 bg-blue-600 text-white shadow-lg">
+                        <AvatarFallback className="text-xl font-bold bg-blue-600">{initials}</AvatarFallback>
                     </Avatar>
-                    <span className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white ${data.whatsapp_mode === 'active' ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <span className={cn(
+                        "absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white shadow-sm",
+                        data.whatsapp_mode === 'active' ? "bg-green-500" : "bg-red-500"
+                    )} />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">{name}</h1>
-                    <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className={`border-opacity-50 ${data.status === 'active' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
-                            {data.status || 'Disconnected'}
-                        </Badge>
-                        <Badge variant="secondary" className="bg-blue-50 text-blue-600 hover:bg-blue-50 font-normal">{data.role === 'business_owner' ? 'User' : data.role}</Badge>
+                    <h1 className="text-xl font-black text-gray-900 capitalize tracking-tight">{name}</h1>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-bold text-green-600 uppercase bg-green-50 px-1.5 py-0.5 rounded tracking-widest">{data.status || 'active'}</span>
+                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{data.role === 'business_owner' ? 'reseller' : data.role}</span>
                     </div>
                 </div>
             </div>
-            <div className="text-right">
-                <p className="text-xs text-gray-500">Member since</p>
-                <p className="text-sm font-medium text-gray-900">Mar 26, 2024</p>
+            <div className="text-right flex flex-col items-end">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Member since</span>
+                <span className="text-sm font-black text-gray-900">Mar 26, 2024</span>
             </div>
         </div>
     )
 }
 
-export function ProfileStats({ data }: ProfileProps) {
+export function ProfileStats({ data }: { data: any }) {
     if (!data) return null;
 
+    const stats = [
+        { label: "TOTAL CREDITS", value: data.wallet?.credits_allocated || 0, color: "bg-blue-600" },
+        { label: "USED CREDITS", value: data.wallet?.credits_used || 0, color: "bg-purple-600" },
+        { label: "REMAINING CREDITS", value: data.wallet?.credits_remaining || 0, color: "bg-emerald-600" },
+        { label: "WALLET BALANCE", value: "₹0", color: "bg-orange-600", isCurrency: true }
+    ];
+
     return (
-        <div className="grid grid-cols-4 gap-8 py-6 border-t border-b border-gray-100">
-            <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">TOTAL CREDITS</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{data.wallet.credits_allocated.toLocaleString()}</p>
-            </div>
-            <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">USED CREDITS</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">{data.wallet.credits_used.toLocaleString()}</p>
-            </div>
-            <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">REMAINING</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">{data.wallet.credits_remaining.toLocaleString()}</p>
-            </div>
-            <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">BALANCE</p>
-                <p className="text-2xl font-bold text-orange-500 mt-1">₹0</p>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-4">
+            {stats.map((stat, i) => (
+                <div key={i} className={cn("rounded-lg p-3 text-white shadow-md flex flex-col justify-center h-20", stat.color)}>
+                    <span className="text-[10px] font-black opacity-80 uppercase tracking-widest">{stat.label}</span>
+                    <span className="text-xl font-black mt-0.5">
+                        {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
+                    </span>
+                </div>
+            ))}
         </div>
     )
 }
 
-export function InfoSection({ title, children, showEdit = true }: { title: string, children: React.ReactNode, showEdit?: boolean }) {
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <UserIcon title={title} />
-                    <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-                </div>
-                {showEdit && <button className="text-sm font-medium text-blue-600 hover:text-blue-700">Edit</button>}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                {children}
-            </div>
-        </div>
-    )
-}
-
-function UserIcon({ title }: { title: string }) {
-    if (title.includes("Personal")) return <div className="p-1 rounded bg-blue-50 text-blue-600"><CheckCircle2 className="h-4 w-4" /></div>
-    if (title.includes("Business")) return <div className="p-1 rounded bg-blue-50 text-blue-600"><CheckCircle2 className="h-4 w-4" /></div> // Using check icon for business too as per generic 'icon' request or similar
-    return null
-}
-
-export function InfoField({ label, value, fullWidth = false }: { label: string, value: string, fullWidth?: boolean }) {
-    return (
-        <div className={fullWidth ? "col-span-2" : ""}>
-            <p className="text-xs font-semibold text-gray-500 uppercase">{label}</p>
-            <p className={`mt-1 text-sm font-medium ${value === "Not provided" || value === "Other" ? "text-gray-900 italic" : "text-gray-900"}`}>{value}</p>
-            {fullWidth && <div className="mt-2" />} {/* Spacing fix for full width items if needed */}
-        </div>
-    )
-}
-
-export function AccountPlanCard({ data }: ProfileProps) {
-    if (!data) return null;
-
-    return (
-        <Card className="bg-white border text-card-foreground shadow-sm">
-            <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5 text-blue-600" />
-                    <CardTitle className="text-base font-semibold">Account Plan</CardTitle>
-                </div>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-2">
-                <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">PLAN TYPE</p>
-                    <p className="text-lg font-bold">MAP 8A</p>
-                </div>
-                <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">USER TYPE</p>
-                    <p className="text-base font-medium capitalize">{data.role === 'business_owner' ? 'User' : data.role.replace('_', ' ')}</p>
-                </div>
-                <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">EXPIRY DATE</p>
-                    <div className="flex items-center gap-2 text-green-600 font-bold">
-                        <History className="h-4 w-4" />
-                        <span>UNLIMITED</span>
-                    </div>
-                </div>
-                <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">USERNAME</p>
-                    <p className="text-sm font-medium break-all">{data.profile.username}</p>
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
-
-export function SecurityCard() {
+export function PersonalInfoSection({ data, onUpdate }: ProfileProps) {
     const [isEditing, setIsEditing] = useState(false);
-    const [currentPassword, setCurrentPassword] = useState("");
-    const [newPassword, setNewPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        name: data?.profile?.name || "",
+        email: data?.profile?.email || "",
+        phone: data?.profile?.phone || "",
+        country: data?.address?.country || "",
+        full_address: data?.address?.full_address || ""
+    });
 
-    const handleChangePassword = async () => {
-        setMessage(null);
-        if (!currentPassword || !newPassword || !confirmPassword) {
-            setMessage({ type: 'error', text: "All fields are required" });
-            return;
-        }
-
-        if (newPassword.length < 8) {
-            setMessage({ type: 'error', text: "New password must be at least 8 characters" });
-            return;
-        }
-
-        if (newPassword !== confirmPassword) {
-            setMessage({ type: 'error', text: "New passwords do not match" });
-            return;
-        }
-
-        setIsLoading(true);
+    const handleSave = async () => {
+        if (!onUpdate) return;
+        setLoading(true);
         try {
-            const token = localStorage.getItem("token");
-            if (!token) throw new Error("Not authenticated");
-
-            await resellerService.changePassword(token, {
-                current_password: currentPassword,
-                new_password: newPassword
+            await onUpdate({
+                profile: {
+                    name: formData.name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    username: data?.profile?.username // Keeping existing username
+                },
+                address: {
+                    country: formData.country,
+                    full_address: formData.full_address
+                }
             });
-
-            setMessage({ type: 'success', text: "Password updated successfully" });
-
-            // Allow user to see success message before resetting or closing
-            setTimeout(() => {
-                setIsEditing(false);
-                setCurrentPassword("");
-                setNewPassword("");
-                setConfirmPassword("");
-                setMessage(null);
-            }, 2000);
-
-        } catch (error: any) {
-            console.error("Change password error:", error);
-            const errorMsg = error.response?.data?.detail || "Failed to update password";
-            setMessage({ type: 'error', text: errorMsg });
+            setIsEditing(false);
+        } catch (err) {
+            console.error(err);
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
     return (
-        <Card className="bg-blue-50/50 border-blue-100 shadow-sm">
-            <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5 text-blue-600" />
-                    <CardTitle className="text-base font-semibold">Security</CardTitle>
-                </div>
-            </CardHeader>
-            <CardContent className="pt-2">
-                {!isEditing ? (
-                    <>
-                        <div className="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
-                            <History className="h-6 w-6 text-blue-600 rotate-180" />
-                        </div>
-                        <p className="text-sm text-gray-600 text-center mb-6">
-                            Keep your account secure by updating your password regularly.
-                        </p>
-                        <Button
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium"
-                            onClick={() => setIsEditing(true)}
-                        >
-                            Change Password
-                        </Button>
-
-                        <div className="mt-6 pt-6 border-t border-gray-200">
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">CURRENT PASSWORD</p>
-                            <div className="bg-white p-2 rounded border flex gap-1 justify-between tracking-widest text-lg h-10 items-center overflow-hidden">
-                                ••••••••••••
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    <div className="space-y-4">
-                        {message && (
-                            <div className={`text-sm p-2 rounded ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                {message.text}
-                            </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-gray-500 uppercase">Current Password</label>
-                            <Input
-                                type="password"
-                                value={currentPassword}
-                                onChange={(e) => setCurrentPassword(e.target.value)}
-                                placeholder="Enter current password"
-                                className="bg-white"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-gray-500 uppercase">New Password</label>
-                            <Input
-                                type="password"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                placeholder="Min 8 characters"
-                                className="bg-white"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-gray-500 uppercase">Confirm Password</label>
-                            <Input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                placeholder="Retype new password"
-                                className="bg-white"
-                            />
-                        </div>
-
-                        <div className="flex gap-2 pt-2">
-                            <Button
-                                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                                onClick={handleChangePassword}
-                                disabled={isLoading}
+        <Card className="border-none shadow-md bg-white">
+            <CardHeader className="pb-4 border-b border-gray-50">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-blue-600">
+                        <User className="h-5 w-5" />
+                        <CardTitle className="text-base font-bold text-gray-800">Personal Information</CardTitle>
+                    </div>
+                    {isEditing ? (
+                        <div className="flex gap-2">
+                            <Button 
+                                variant="ghost" size="sm" 
+                                className="text-green-600 font-bold h-7 px-2 hover:bg-green-50"
+                                onClick={handleSave}
+                                disabled={loading}
                             >
-                                {isLoading ? "Updating..." : "Update"}
+                                {loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+                                Save
                             </Button>
-                            <Button
-                                variant="outline"
-                                className="flex-1"
-                                onClick={() => {
-                                    setIsEditing(false);
-                                    setMessage(null);
-                                    setCurrentPassword("");
-                                    setNewPassword("");
-                                    setConfirmPassword("");
-                                }}
-                                disabled={isLoading}
+                            <Button 
+                                variant="ghost" size="sm" 
+                                className="text-red-500 font-bold h-7 px-2 hover:bg-red-50"
+                                onClick={() => setIsEditing(false)}
+                                disabled={loading}
                             >
+                                <X className="h-3 w-3 mr-1" />
                                 Cancel
                             </Button>
                         </div>
-                    </div>
+                    ) : (
+                        <Button 
+                            variant="ghost" size="sm" 
+                            className="text-blue-600 font-bold h-7 px-3"
+                            onClick={() => setIsEditing(true)}
+                        >
+                            Edit
+                        </Button>
+                    )}
+                </div>
+            </CardHeader>
+            <CardContent className="pt-6 grid grid-cols-2 gap-y-6 gap-x-8">
+                {isEditing ? (
+                    <>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">FULL NAME</label>
+                            <Input 
+                                value={formData.name} 
+                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                className="h-9 font-bold text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">EMAIL ADDRESS</label>
+                            <Input 
+                                value={formData.email} 
+                                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                className="h-9 font-bold text-sm"
+                            />
+                        </div>
+                        <div className="col-span-2 space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">USER ID</label>
+                            <Input value={data?.id || "N/A"} disabled className="h-9 font-bold text-sm bg-gray-50" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">MOBILE NUMBER</label>
+                            <Input 
+                                value={formData.phone} 
+                                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                className="h-9 font-bold text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">COUNTRY</label>
+                            <Input 
+                                value={formData.country} 
+                                onChange={(e) => setFormData({...formData, country: e.target.value})}
+                                className="h-9 font-bold text-sm"
+                            />
+                        </div>
+                        <div className="col-span-2 space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ADDRESS</label>
+                            <Input 
+                                value={formData.full_address} 
+                                onChange={(e) => setFormData({...formData, full_address: e.target.value})}
+                                className="h-9 font-bold text-sm"
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <InfoItem label="FULL NAME" value={data?.profile?.name || "N/A"} />
+                        <InfoItem label="EMAIL ADDRESS" value={data?.profile?.email || "N/A"} />
+                        <InfoItem label="USER ID" value={data?.id || "N/A"} fullWidth />
+                        <InfoItem label="MOBILE NUMBER" value={data?.profile?.phone || "N/A"} />
+                        <InfoItem label="COUNTRY" value={data?.address?.country || "Not specified"} />
+                        <InfoItem label="ADDRESS" value={data?.address?.full_address || "Not specified"} fullWidth />
+                    </>
                 )}
             </CardContent>
         </Card>
+    )
+}
+
+export function BusinessInfoSection({ data, onUpdate }: ProfileProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        business_name: data?.business?.business_name || "",
+        organization_type: data?.business?.organization_type || "",
+        erp_system: data?.business?.erp_system || "",
+        bank_name: data?.bank?.bank_name || ""
+    });
+
+    const handleSave = async () => {
+        if (!onUpdate) return;
+        setLoading(true);
+        try {
+            await onUpdate({
+                business: {
+                    business_name: formData.business_name,
+                    organization_type: formData.organization_type,
+                    erp_system: formData.erp_system
+                },
+                bank: {
+                    bank_name: formData.bank_name
+                }
+            });
+            setIsEditing(false);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Card className="border-none shadow-md bg-white">
+            <CardHeader className="pb-4 border-b border-gray-50">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-blue-600">
+                        <Building2 className="h-5 w-5" />
+                        <CardTitle className="text-base font-bold text-gray-800">Business Information</CardTitle>
+                    </div>
+                    {isEditing ? (
+                        <div className="flex gap-2">
+                            <Button 
+                                variant="ghost" size="sm" 
+                                className="text-green-600 font-bold h-7 px-2 hover:bg-green-50"
+                                onClick={handleSave}
+                                disabled={loading}
+                            >
+                                {loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+                                Save
+                            </Button>
+                            <Button 
+                                variant="ghost" size="sm" 
+                                className="text-red-500 font-bold h-7 px-2 hover:bg-red-50"
+                                onClick={() => setIsEditing(false)}
+                                disabled={loading}
+                            >
+                                <X className="h-3 w-3 mr-1" />
+                                Cancel
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button 
+                            variant="ghost" size="sm" 
+                            className="text-blue-600 font-bold h-7 px-3"
+                            onClick={() => setIsEditing(true)}
+                        >
+                            Edit
+                        </Button>
+                    )}
+                </div>
+            </CardHeader>
+            <CardContent className="pt-6 grid grid-cols-2 gap-y-6 gap-x-8">
+                {isEditing ? (
+                    <>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">COMPANY NAME</label>
+                            <Input 
+                                value={formData.business_name} 
+                                onChange={(e) => setFormData({...formData, business_name: e.target.value})}
+                                className="h-9 font-bold text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ORGANIZATION TYPE</label>
+                            <Input 
+                                value={formData.organization_type} 
+                                onChange={(e) => setFormData({...formData, organization_type: e.target.value})}
+                                className="h-9 font-bold text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ERP TYPE</label>
+                            <Input 
+                                value={formData.erp_system} 
+                                onChange={(e) => setFormData({...formData, erp_system: e.target.value})}
+                                className="h-9 font-bold text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">BANK NAME</label>
+                            <Input 
+                                value={formData.bank_name} 
+                                onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                                className="h-9 font-bold text-sm"
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <InfoItem label="COMPANY NAME" value={data?.business?.business_name || "Not provided"} />
+                        <InfoItem label="ORGANIZATION TYPE" value={data?.business?.organization_type || "Not provided"} />
+                        <InfoItem label="ERP TYPE" value={data?.business?.erp_system || "Not provided"} />
+                        <InfoItem label="BANK NAME" value={data?.bank?.bank_name || "Not provided"} />
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
+
+export function AccountDetailsSection({ data }: { data: any }) {
+    return (
+        <Card className="border-none shadow-md bg-white">
+            <CardHeader className="pb-4 border-b border-gray-50">
+                <div className="flex items-center gap-2 text-blue-600">
+                    <Layout className="h-5 w-5" />
+                    <CardTitle className="text-base font-bold text-gray-800">Account Details</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+                <InfoItem label="PLAN TYPE" value="MAP 8A" />
+                <InfoItem label="USER TYPE" value={data?.role || "reseller"} />
+                <InfoItem label="EXPIRY DATE" value="UNLIMITED" isDynamic />
+                <InfoItem label="USERNAME" value={data?.profile?.username || "N/A"} />
+                <InfoItem label="CURRENT PASSWORD" value="••••••••••••" />
+            </CardContent>
+        </Card>
+    )
+}
+
+export function SecuritySettingsSection() {
+    return (
+        <Card className="border-none shadow-md bg-white">
+            <CardHeader className="pb-4 border-b border-gray-50">
+                <div className="flex items-center gap-2 text-blue-600">
+                    <Lock className="h-5 w-5" />
+                    <CardTitle className="text-base font-bold text-gray-800">Security Settings</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="pt-12 flex flex-col items-center justify-center text-center space-y-4 min-h-[300px]">
+                <div className="p-4 bg-gray-50 rounded-full border border-gray-100">
+                    <ShieldCheck className="h-8 w-8 text-gray-300" />
+                </div>
+                <p className="text-xs text-gray-400 font-medium max-w-[200px]">Keep your account secure by updating your password regularly.</p>
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 shadow-md">Change Password</Button>
+            </CardContent>
+        </Card>
+    )
+}
+
+function InfoItem({ label, value, fullWidth = false, isDynamic = false }: { label: string, value: string, fullWidth?: boolean, isDynamic?: boolean }) {
+    return (
+        <div className={cn("flex flex-col gap-1", fullWidth ? "col-span-2" : "")}>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
+            <span className={cn(
+                "text-sm font-bold text-gray-800",
+                isDynamic && "text-emerald-600 font-black"
+            )}>
+                {value}
+            </span>
+        </div>
     )
 }

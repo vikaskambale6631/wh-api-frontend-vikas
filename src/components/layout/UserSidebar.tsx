@@ -16,7 +16,8 @@ import {
     X,
     LogOut,
     CreditCard,
-    ShieldCheck
+    ShieldCheck,
+    Code
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +112,7 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
                 { label: "Schedule Reports", href: "/dashboard/user/reports/schedule-reports" }
             ]
         },
+        { label: "API", icon: Code, href: "https://documenter.getpostman.com/view/1240173/2sB3B8stEM", color: "text-emerald-500" },
     ];
 
     return (
@@ -167,6 +169,8 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
                             >
                                 <Link
                                     href={item.href}
+                                    target={item.href.startsWith("http") ? "_blank" : undefined}
+                                    rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
                                     className={cn("flex items-center gap-3", collapsed ? "justify-center" : "flex-1")}
                                     onClick={(e) => {
                                         if (item.hasSubmenu) {

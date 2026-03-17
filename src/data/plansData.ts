@@ -2,29 +2,29 @@ import { Plan } from "@/components/plans/PlansComponents"
 
 export const resellerPlans: Plan[] = [
     {
-        name: "MAP 8D",
-        price: "₹50,000",
-        credits: "500,000",
-        rate: "0.1 paise",
-        validity: "360 days",
-        colorTheme: "purple"
-    },
-    {
-        name: "MAP 8A",
-        price: "₹13,500",
-        credits: "100,000",
-        rate: "0.135 paise",
-        validity: "360 days",
-        isPopular: true,
+        name: "STARTER",
+        price: "₹5,000",
+        credits: "25,000",
+        rate: "0.20 paise",
+        validity: "365 days",
         colorTheme: "blue"
     },
     {
-        name: "MAP 8C",
-        price: "₹33,000",
-        credits: "300,000",
-        rate: "0.11 paise",
-        validity: "360 days",
+        name: "BUSINESS",
+        price: "₹10,000",
+        credits: "100,000",
+        rate: "0.10 paise",
+        validity: "365 days",
+        isPopular: true,
         colorTheme: "purple"
+    },
+    {
+        name: "ENTERPRISE",
+        price: "₹50,000",
+        credits: "600,000",
+        rate: "0.08 paise",
+        validity: "365 days",
+        colorTheme: "blue"
     }
 ]
 
