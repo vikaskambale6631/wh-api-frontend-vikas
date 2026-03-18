@@ -15,6 +15,8 @@ interface MediaMessageComposerProps {
     setMediaType: (type: MediaType) => void;
     filePath: string;
     setFilePath: (path: string) => void;
+    file: File | null;
+    setFile: (file: File | null) => void;
     caption: string;
     setCaption: (caption: string) => void;
 }
@@ -32,9 +34,23 @@ export default function MediaMessageComposer({
     setMediaType,
     filePath,
     setFilePath,
+    file,
+    setFile,
     caption,
     setCaption,
 }: MediaMessageComposerProps) {
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile) {
+            setFile(selectedFile);
+            setFilePath(""); // Clear manual path if file is selected
+        }
+    };
+
+    const clearFile = () => {
+        setFile(null);
+    };
 
     return (
         <div className="space-y-6">
@@ -61,30 +77,74 @@ export default function MediaMessageComposer({
                 </div>
             </div>
 
-            {/* File Path Input */}
-            <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    File Path or URL
+            {/* File Upload Area */}
+            <div className="space-y-4">
+                <label className="block text-sm font-semibold text-gray-700">
+                    File Attachment
                 </label>
-                <div className="relative">
-                    <LinkIcon className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                    <input
-                        type="text"
-                        value={filePath}
-                        onChange={(e) => setFilePath(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
-                        placeholder="e.g. D:\files\image.jpg or https://example.com/photo.jpg"
-                    />
-                </div>
-                <p className="mt-2 text-xs text-gray-400">
-                    Enter the full file path on the server or a publicly accessible URL. No file size limit applies.
-                </p>
-                {filePath.trim() && (
-                    <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
-                        <span className="text-emerald-600 text-sm font-medium">✓ File path set</span>
-                        <span className="text-emerald-500 text-xs truncate flex-1">{filePath}</span>
+                
+                {!file ? (
+                    <div className="relative group">
+                        <input
+                            type="file"
+                            onChange={handleFileChange}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 transition-all group-hover:border-emerald-300 group-hover:bg-emerald-50/30">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+                                <ImageIcon size={24} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-semibold text-gray-700">Click or drag to upload</p>
+                                <p className="text-xs text-gray-400 mt-1">Images, Videos, or Documents</p>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                            <FileText size={24} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-emerald-900 truncate">{file.name}</p>
+                            <p className="text-xs text-emerald-600">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+                        <button 
+                            onClick={clearFile}
+                            className="p-2 hover:bg-emerald-200 rounded-lg text-emerald-600 transition-colors"
+                        >
+                            <Video size={18} className="rotate-45" /> 
+                            {/* Using Video as an 'X' icon for now or just a button */}
+                            <span className="sr-only">Remove file</span>
+                        </button>
                     </div>
                 )}
+
+                <div className="flex items-center gap-4 py-2">
+                    <div className="h-[1px] bg-gray-100 flex-1"></div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">OR USE EXTERNAL PATH</span>
+                    <div className="h-[1px] bg-gray-100 flex-1"></div>
+                </div>
+
+                {/* File Path Input */}
+                <div>
+                    <div className="relative">
+                        <LinkIcon className="absolute left-3 top-3.5 text-gray-400" size={18} />
+                        <input
+                            type="text"
+                            value={filePath}
+                            onChange={(e) => {
+                                setFilePath(e.target.value);
+                                if (e.target.value) setFile(null); // Clear file if manual path is typed
+                            }}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
+                            placeholder="e.g. C:\Users\ASUS\Downloads\file.pdf or https://example.com/photo.jpg"
+                        />
+                    </div>
+                    <p className="mt-2 text-xs text-gray-400">
+                        Enter a local file path or a publicly accessible URL.
+                    </p>
+                </div>
             </div>
 
             {/* Caption Input */}

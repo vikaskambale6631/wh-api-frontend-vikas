@@ -50,6 +50,7 @@ export default function UnofficialMessagePage() {
     const [messageType, setMessageType] = useState<"text" | "media">("text");
     const [mediaType, setMediaType] = useState<"image" | "video" | "document">("image");
     const [filePath, setFilePath] = useState("");
+    const [file, setFile] = useState<File | null>(null);
     const [caption, setCaption] = useState("");
     const [recipientType, setRecipientType] = useState<"single" | "group">("single");
 
@@ -229,7 +230,7 @@ export default function UnofficialMessagePage() {
             if (messageType === "text") {
                 return messageContent.trim().length > 0;
             } else {
-                return filePath.trim().length > 0;
+                return (filePath.trim().length > 0) || (file !== null);
             }
         }
 
@@ -328,11 +329,11 @@ export default function UnofficialMessagePage() {
             }
 
             // ═══════════════════════════════════════════════════════════════════
-            // MEDIA MESSAGE (file_path approach — NO base64)
+            // MEDIA MESSAGE (file upload or file_path approach)
             // ═══════════════════════════════════════════════════════════════════
             else {
-                if (!filePath.trim()) {
-                    setStatus({ type: "error", text: "Please enter a file path or URL." });
+                if (!filePath.trim() && !file) {
+                    setStatus({ type: "error", text: "Please upload a file or enter a path/URL." });
                     return;
                 }
 
@@ -350,7 +351,8 @@ export default function UnofficialMessagePage() {
                             device_name,
                             singleUserPhone,
                             cleanFilePath,
-                            caption
+                            caption,
+                            file || undefined
                         );
                         console.log("📎 send-file-text result:", result);
                     } else {
@@ -360,7 +362,8 @@ export default function UnofficialMessagePage() {
                             device_id,
                             device_name,
                             singleUserPhone,
-                            cleanFilePath
+                            cleanFilePath,
+                            file || undefined
                         );
                         console.log("📎 send-file result:", result);
                     }
@@ -395,7 +398,8 @@ export default function UnofficialMessagePage() {
                             recipients,
                             cleanFilePath,
                             true,
-                            30
+                            30,
+                            file || undefined
                         );
                     } else {
                         // File only → POST /bulk-send-files
@@ -406,7 +410,8 @@ export default function UnofficialMessagePage() {
                             cleanFilePath,
                             recipients,
                             true,
-                            30
+                            30,
+                            file || undefined
                         );
                     }
 
@@ -437,6 +442,7 @@ export default function UnofficialMessagePage() {
             setSingleUserPhone("");
             setSelectedGroupIds([]);
             setFilePath("");
+            setFile(null);
             setCaption("");
 
         } catch (error: any) {
@@ -705,6 +711,8 @@ export default function UnofficialMessagePage() {
                                                     setMediaType={setMediaType}
                                                     filePath={filePath}
                                                     setFilePath={setFilePath}
+                                                    file={file}
+                                                    setFile={setFile}
                                                     caption={caption}
                                                     setCaption={setCaption}
                                                 />

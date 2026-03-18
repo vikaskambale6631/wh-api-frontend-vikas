@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-    Settings, Clock, CheckCircle, RefreshCcw, Save, MessageSquare, AlertCircle
+    Settings, Clock, CheckCircle, RefreshCcw, Save, MessageSquare, AlertCircle, Play, StopCircle, Zap
 } from "lucide-react";
 import { googleSheetService, GoogleSheet, TriggerHistory } from "@/services/googleSheetService";
 import { deviceService, Device } from "@/services/deviceService";
@@ -34,17 +34,49 @@ export default function OfficialTriggerPage() {
         message_column: "" // NEW: Message column to get message content from sheet
     });
     const [saving, setSaving] = useState(false);
+    const [isPolling, setIsPolling] = useState(false);
+    const [firing, setFiring] = useState(false);
 
     useEffect(() => {
         loadData();
         loadDevices();
         fetchHistory();
 
-        const interval = setInterval(() => {
+        // Start background polling when entering the page
+        const startTriggerPolling = async () => {
+            try {
+                await googleSheetService.startPolling(30);
+                setIsPolling(true);
+            } catch (error) {
+                console.error("Failed to start trigger polling", error);
+            }
+        };
+
+        const checkPollingStatus = async () => {
+            try {
+                const status = await googleSheetService.getPollingStatus();
+                setIsPolling(status.is_running);
+            } catch (error) {
+                console.error("Failed to check polling status", error);
+            }
+        };
+
+        startTriggerPolling();
+        checkPollingStatus();
+
+        const historyInterval = setInterval(() => {
             fetchHistory();
+            checkPollingStatus();
         }, 10000);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(historyInterval);
+            // Optionally stop polling when leaving, but we'll let it run 
+            // as long as the user might be expecting it. 
+            // For now, we follow the request: "It should only start when I open the trigger page"
+            // We can stop it on unmount if we want to be strict.
+            googleSheetService.stopPolling().catch(console.error);
+        };
     }, []);
 
     const loadDevices = async () => {
@@ -56,7 +88,7 @@ export default function OfficialTriggerPage() {
             }
             const data = await deviceService.getUnofficialDevices(userId);
             // Filter to show only connected devices
-            const connectedDevices = data.filter(device => device.session_status === 'connected');
+            const connectedDevices = data.filter((device: Device) => device.session_status === 'connected');
             setDevices(connectedDevices);
         } catch (error) {
             console.error("Failed to load devices", error);
@@ -211,6 +243,20 @@ export default function OfficialTriggerPage() {
             setSaving(false);
         }
     };
+    
+    const handleFireNow = async () => {
+        setFiring(true);
+        try {
+            await googleSheetService.fireTriggersNow();
+            alert("✅ Trigger processing cycle started manually!");
+            fetchHistory();
+        } catch (error: any) {
+            console.error("Manual fire error:", error);
+            alert(`❌ Failed to fire triggers: ${error.userMessage || error.message}`);
+        } finally {
+            setFiring(false);
+        }
+    };
 
 
 
@@ -245,6 +291,22 @@ export default function OfficialTriggerPage() {
                     <RefreshCcw className="w-4 h-4" />
                     Refresh History
                 </button>
+                <div className="flex items-center gap-2">
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${isPolling ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                        <div className={`w-2 h-2 rounded-full ${isPolling ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                        {isPolling ? 'Auto-Polling Active' : 'Polling Inactive'}
+                    </div>
+                    
+                    <button 
+                        onClick={handleFireNow} 
+                        disabled={firing}
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors disabled:opacity-50"
+                        title="Process triggers immediately without waiting for next poll"
+                    >
+                        {firing ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                        {firing ? 'Processing...' : 'Fire Triggers Now'}
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

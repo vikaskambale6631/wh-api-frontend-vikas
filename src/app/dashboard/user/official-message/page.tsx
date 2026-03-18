@@ -29,6 +29,7 @@ export default function OfficialMessagePage() {
     // Media messaging states
     const [mediaType, setMediaType] = useState<"image" | "video" | "document">("image");
     const [filePath, setFilePath] = useState("");
+    const [file, setFile] = useState<File | null>(null);
     const [caption, setCaption] = useState("");
     const [recipientType, setRecipientType] = useState<"single" | "group">("single");
 
@@ -121,8 +122,8 @@ export default function OfficialMessagePage() {
             } else if (messageType === "template") {
                 return selectedTemplate.length > 0;
             } else {
-                // Media: must have a file path
-                return filePath.trim().length > 0;
+                // Media: must have a file or a file path
+                return file !== null || filePath.trim().length > 0;
             }
         }
 
@@ -166,13 +167,13 @@ export default function OfficialMessagePage() {
                     );
                 } else if (messageType === "media") {
                     // ── Media message (single user) ──────────────────────────
-                    if (!filePath.trim()) {
-                        setStatus({ type: "error", text: "Please enter a file path or URL." });
+                    if (!file && !filePath.trim()) {
+                        setStatus({ type: "error", text: "Please upload a file or enter a file path/URL." });
                         return;
                     }
                     const result = await officialWhatsappService.sendMediaMessage(
                         singleUserPhone,
-                        filePath,
+                        file || filePath,
                         caption,
                         token
                     );
@@ -227,6 +228,7 @@ export default function OfficialMessagePage() {
             setSelectedTemplate("");
             setTemplateVariables({});
             setFilePath("");
+            setFile(null);
             setCaption("");
 
         } catch (error: any) {
@@ -534,6 +536,8 @@ export default function OfficialMessagePage() {
                                                 setMediaType={setMediaType}
                                                 filePath={filePath}
                                                 setFilePath={setFilePath}
+                                                file={file}
+                                                setFile={setFile}
                                                 caption={caption}
                                                 setCaption={setCaption}
                                             />
@@ -607,7 +611,9 @@ export default function OfficialMessagePage() {
                                             ) : (
                                                 <>
                                                     <span className="block font-medium text-gray-800 mb-1">Media Type: <span className="capitalize">{mediaType}</span></span>
-                                                    <span className="block text-xs text-gray-500">File Path: {filePath || "No file path set"}</span>
+                                                    <span className="block text-xs text-gray-500">
+                                                        {file ? `File: ${file.name}` : `File Path: ${filePath || "No file set"}`}
+                                                    </span>
                                                     {caption && <span className="block text-xs text-gray-500 mt-1">Caption: {caption}</span>}
                                                 </>
                                             )}

@@ -40,11 +40,15 @@ function parseApiError(status: number, data: any): string {
 }
 
 /** Build FormData from a plain object */
-function buildFormData(fields: Record<string, string | boolean | number>): FormData {
+function buildFormData(fields: Record<string, string | boolean | number | File>): FormData {
     const fd = new FormData();
     for (const [key, value] of Object.entries(fields)) {
         if (value !== undefined && value !== null) {
-            fd.append(key, String(value));
+            if (value instanceof File) {
+                fd.append(key, value);
+            } else {
+                fd.append(key, String(value));
+            }
         }
     }
     return fd;
@@ -66,7 +70,7 @@ async function postJSON<T = any>(
 /** Generic POST with FormData body */
 async function postForm<T = any>(
     endpoint: string,
-    fields: Record<string, string | boolean | number>
+    fields: Record<string, string | boolean | number | File>
 ): Promise<T> {
     const fd = buildFormData(fields);
     try {
@@ -151,13 +155,15 @@ const unofficialApiService = {
         deviceId: string,
         deviceName: string,
         receiverNumber: string,
-        filePath: string
+        filePath: string,
+        file?: File
     ): Promise<SendMessageResult> =>
         postForm("/send-file", {
             device_id: deviceId,
             device_name: deviceName,
             receiver_number: receiverNumber,
             file_path: filePath,
+            file: file as File,
         }),
 
     /** POST /send-file-text — FormData (file + text message) */
@@ -166,7 +172,8 @@ const unofficialApiService = {
         deviceName: string,
         receiverNumber: string,
         filePath: string,
-        message: string
+        message: string,
+        file?: File
     ): Promise<SendMessageResult> =>
         postForm("/send-file-text", {
             device_id: deviceId,
@@ -174,6 +181,7 @@ const unofficialApiService = {
             receiver_number: receiverNumber,
             file_path: filePath,
             message,
+            file: file as File,
         }),
 
     /** POST /send-file-caption — FormData (file + caption) */
@@ -182,7 +190,8 @@ const unofficialApiService = {
         deviceName: string,
         receiverNumber: string,
         filePath: string,
-        caption: string
+        caption: string,
+        file?: File
     ): Promise<SendMessageResult> =>
         postForm("/send-file-caption", {
             device_id: deviceId,
@@ -190,6 +199,7 @@ const unofficialApiService = {
             receiver_number: receiverNumber,
             file_path: filePath,
             caption,
+            file: file as File,
         }),
 
 
@@ -222,7 +232,8 @@ const unofficialApiService = {
         filePath: string,
         recipients: string[],
         waitForDelivery = true,
-        maxWaitTime = 30
+        maxWaitTime = 30,
+        file?: File
     ): Promise<BulkSendResult> =>
         postForm("/bulk-send-files", {
             device_id: deviceId,
@@ -231,6 +242,7 @@ const unofficialApiService = {
             recipients_raw: recipients.join(","),
             wait_for_delivery: waitForDelivery,
             max_wait_time: maxWaitTime,
+            file: file as File,
         }),
 
     /** POST /bulk-send-files-with-text — FormData (message + optional file) */
@@ -241,9 +253,10 @@ const unofficialApiService = {
         recipients: string[],
         filePath?: string,
         waitForDelivery = true,
-        maxWaitTime = 30
+        maxWaitTime = 30,
+        file?: File
     ): Promise<BulkSendResult> => {
-        const fields: Record<string, string | boolean | number> = {
+        const fields: Record<string, string | boolean | number | File> = {
             device_id: deviceId,
             device_name: deviceName,
             text: message,
@@ -252,6 +265,7 @@ const unofficialApiService = {
             max_wait_time: maxWaitTime,
         };
         if (filePath) fields.file_path = filePath;
+        if (file) fields.file = file;
         return postForm("/bulk-send-files-with-text", fields);
     },
 

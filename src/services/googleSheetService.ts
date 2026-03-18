@@ -271,5 +271,26 @@ export const googleSheetService = {
     getAvailableWorksheets: async (sheetId: string) => {
         const response = await api.get<string[]>(`/google-sheets/${sheetId}/worksheets`);
         return response.data;
+    },
+
+    // ✅ NEW: Trigger Polling Control
+    getPollingStatus: async () => {
+        const response = await api.get<{ is_running: boolean, status: string }>('/google-sheets/triggers/polling/status');
+        return response.data;
+    },
+
+    startPolling: async (interval: number = 30) => {
+        const response = await api.post('/google-sheets/triggers/polling/start', null, { params: { interval } });
+        return response.data;
+    },
+
+    stopPolling: async () => {
+        const response = await api.post('/google-sheets/triggers/polling/stop');
+        return response.data;
+    },
+
+    fireTriggersNow: async () => {
+        const response = await api.post('/google-sheets/triggers/polling/fire-now');
+        return response.data;
     }
 };
