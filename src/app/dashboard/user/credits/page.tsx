@@ -2,7 +2,7 @@
 
 import DashboardLayout from "@/components/layout/DashboardLayout"
 import { Button } from "@/components/ui/button"
-import { Shield, RefreshCw, Search, Calendar, CreditCard, ArrowLeft } from "lucide-react"
+import { Shield, RefreshCw, Search, Calendar, CreditCard, ArrowLeft, AlertCircle } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import creditService, { MessageUsageLog } from "@/services/creditService"
@@ -21,8 +21,8 @@ export default function CreditUsagePage() {
     const [summary, setSummary] = useState<{ 
         total_usage: number, 
         total_added: number,
-        latest_deduction: { credits: number, timestamp: string | null },
-        latest_transaction: { credits: number, timestamp: string | null, message_id: string | null }
+        latest_deduction: { credits: number, timestamp: string | null } | null,
+        latest_transaction: { credits: number, timestamp: string | null, message_id: string | null } | null
     } | null>(null)
 
     const fetchData = async () => {
@@ -73,11 +73,23 @@ export default function CreditUsagePage() {
 
         } catch (err: any) {
             console.error("Error fetching credit usage:", err)
-            if (err.message?.includes('Failed to fetch')) {
-                setError('Backend server is not accessible. Please check if server is running.')
+            
+            // More detailed error handling
+            if (err.code === 'ECONNREFUSED' || err.message?.includes('Failed to fetch')) {
+                setError('Backend server is not accessible. Please check if server is running on port 8000.')
+            } else if (err.response?.status === 401) {
+                setError('Authentication failed. Please log in again.')
+            } else if (err.response?.status === 404) {
+                setError('User account not found. Please contact support.')
+            } else if (err.response?.status >= 500) {
+                setError('Server error. Please try again later.')
             } else {
                 setError(err.response?.data?.message || err.message || "Failed to load credit history")
             }
+            
+            // Set fallback values to show something instead of ---
+            setCurrentBalance(0)
+            setSummary({ total_usage: 0, total_added: 0, latest_deduction: null, latest_transaction: null })
         } finally {
             setIsLoading(false)
         }
@@ -136,6 +148,11 @@ export default function CreditUsagePage() {
                         <p className="text-sm text-gray-500 font-medium mb-2">Current Balance</p>
                         <h3 className="text-3xl font-bold text-gray-900">
                             {currentBalance !== null ? currentBalance : "---"}
+                            {currentBalance === null && (
+                                <span className="text-xs text-gray-400 block mt-1">
+                                    API Error - Check console
+                                </span>
+                            )}
                         </h3>
                         <p className="text-xs text-blue-600 mt-1 font-medium">Available Credits</p>
                     </div>
@@ -156,7 +173,12 @@ export default function CreditUsagePage() {
                     <div className="bg-white p-6 rounded-xl border shadow-sm">
                         <p className="text-sm text-gray-500 font-medium mb-2">Latest Activity</p>
                         <h3 className="text-xl font-bold text-gray-900">
-                            {summary?.latest_transaction?.timestamp ? new Date(summary.latest_transaction.timestamp).toLocaleDateString() : "N/A"}
+                            {summary?.latest_transaction?.timestamp ? new Date(summary.latest_transaction.timestamp).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                timeZone: 'Asia/Kolkata'
+                            }) : "N/A"}
                         </h3>
                         <p className="text-xs text-gray-400 mt-1 font-medium italic">
                             {summary?.latest_transaction?.credits !== undefined ? (
@@ -224,10 +246,20 @@ export default function CreditUsagePage() {
                                         <tr key={log.usage_id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="font-medium text-gray-900">
-                                                    {new Date(log.timestamp).toLocaleDateString()}
+                                                    {new Date(log.timestamp).toLocaleDateString('en-US', {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        timeZone: 'Asia/Kolkata'
+                                                    })}
                                                 </div>
                                                 <div className="text-gray-500 text-xs text-nowrap">
-                                                    {new Date(log.timestamp).toLocaleTimeString()}
+                                                    {new Date(log.timestamp).toLocaleTimeString('en-US', {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit',
+                                                        hour12: true,
+                                                        timeZone: 'Asia/Kolkata'
+                                                    })}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 font-mono text-xs text-gray-600">

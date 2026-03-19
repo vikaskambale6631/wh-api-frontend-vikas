@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import DashboardLayout from "@/components/layout/DashboardLayout"
 import { Button } from "@/components/ui/button"
@@ -17,11 +17,18 @@ import {
     Crown 
 } from "lucide-react"
 import Script from "next/script"
-import { useOrder } from "@/context/OrderContext"
 import { resellerPlans, userPlans } from "@/data/plansData"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import creditService from "@/services/creditService"
+import { businessService } from "@/services/businessService"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 declare global {
     interface Window {
@@ -32,7 +39,6 @@ declare global {
 function CheckoutContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
-    const { addOrder } = useOrder()
 
     const planName = searchParams.get('planName')
     const [isLoading, setIsLoading] = useState(false)
@@ -42,8 +48,11 @@ function CheckoutContent() {
         email: "",
         mobile: "",
         company: "",
-        gstin: ""
+        gstin: "",
+        allocate_to_user_id: "self"
     })
+    const [businessUsers, setBusinessUsers] = useState<any[]>([])
+    const [userRole, setUserRole] = useState<string | null>(null)
     
     const [billingData, setBillingData] = useState({
         grossAmount: 0,
@@ -57,7 +66,7 @@ function CheckoutContent() {
     const selectedPlan = allPlans.find(p => p.name === planName)
 
     // Initialize billing data when plan is selected
-    useState(() => {
+    useEffect(() => {
         if (selectedPlan) {
             const price = parseInt(selectedPlan.price.replace(/[^0-9]/g, ''))
             const gst = Math.round(price * 0.18)
@@ -68,7 +77,34 @@ function CheckoutContent() {
                 credits: parseInt(selectedPlan.credits.replace(/,/g, ''))
             })
         }
-    })
+    }, [selectedPlan])
+
+    // Fetch business users if role is reseller
+    useEffect(() => {
+        const fetchUserData = async () => {
+            if (typeof window !== 'undefined') {
+                try {
+                    const role = localStorage.getItem('user_role')
+                    const token = localStorage.getItem('token') || localStorage.getItem('accessToken')
+                    
+                    if (role && token) {
+                        setUserRole(role)
+                        
+                        if (role === 'reseller' || role === 'admin') {
+                            const resellerId = localStorage.getItem('user_id') || localStorage.getItem('reseller_id')
+                            if (resellerId) {
+                                const response = await businessService.getBusinessesByReseller(resellerId, token)
+                                setBusinessUsers(Array.isArray(response) ? response : (response.data || []))
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching user info or businesses:', err)
+                }
+            }
+        }
+        fetchUserData()
+    }, [])
 
     if (!selectedPlan && planName) {
         return (
@@ -115,11 +151,17 @@ function CheckoutContent() {
             }
 
             // Step 1: Call backend to initiate payment
-            const response = await creditService.initiatePayment({
+            const payload: any = {
                 plan_name: selectedPlan.name,
                 credits: billingData.credits,
                 price: billingData.grossAmount
-            }, token)
+            };
+            
+            if (formData.allocate_to_user_id !== "self") {
+                payload.allocated_to_user_id = formData.allocate_to_user_id;
+            }
+            
+            const response = await creditService.initiatePayment(payload, token)
 
             if (response.success && response.razorpay_order_id) {
                 // Step 2: Open Razorpay Checkout
@@ -263,6 +305,29 @@ function CheckoutContent() {
                                     />
                                 </div>
                             </div>
+                            
+                            {(userRole === 'reseller' || userRole === 'admin') && (
+                                <div className="space-y-2 md:col-span-2">
+                                    <label className="text-xs font-black text-gray-600 uppercase tracking-widest ml-1">Allocate Plan To</label>
+                                    <Select 
+                                        value={formData.allocate_to_user_id} 
+                                        onValueChange={(value) => setFormData({...formData, allocate_to_user_id: value})}
+                                    >
+                                        <SelectTrigger className="w-full h-12 rounded-xl bg-gray-50 border-none ring-1 ring-gray-200 focus:ring-2 focus:ring-blue-600 font-medium">
+                                            <SelectValue placeholder="Select a user to allocate" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="self" className="font-semibold text-blue-600">Buy for Myself (My Wallet) - Default</SelectItem>
+                                            {businessUsers.map((user) => (
+                                                <SelectItem key={user.busi_user_id || user.id} value={user.busi_user_id || user.id}>
+                                                    {user.profile?.name || user.business?.business_name || 'Unnamed Business'} ({user.profile?.email || 'No email'})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-gray-400 mt-2 px-1 font-medium">If you select a business user, the credits from this plan will be automatically deposited into their wallet after purchase.</p>
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

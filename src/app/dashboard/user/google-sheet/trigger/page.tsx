@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-    Settings, Clock, CheckCircle, RefreshCcw, Save, MessageSquare, AlertCircle, Play, StopCircle, Zap
+    Settings, Clock, CheckCircle, RefreshCcw, Save, MessageSquare, AlertCircle, Trash2, Play, StopCircle, Zap
 } from "lucide-react";
 import { googleSheetService, GoogleSheet, TriggerHistory } from "@/services/googleSheetService";
 import { deviceService, Device } from "@/services/deviceService";
@@ -16,9 +16,12 @@ export default function OfficialTriggerPage() {
     const [selectedSheetId, setSelectedSheetId] = useState("");
     const [selectedSheet, setSelectedSheet] = useState<GoogleSheet | null>(null);
     const [columns, setColumns] = useState<string[]>([]);
+    const [triggers, setTriggers] = useState<any[]>([]); // NEW: Store active triggers
+    const [actionLoading, setActionLoading] = useState<string | null>(null); // To show loading state for start/stop
 
     // Unofficial API Requirements
-    const [devices, setDevices] = useState<Device[]>([]);
+    const [allDevices, setAllDevices] = useState<Device[]>([]); // NEW: Store all user devices for table mapping
+    const [devices, setDevices] = useState<Device[]>([]); // Used for active Dropdown
     const [selectedDeviceId, setSelectedDeviceId] = useState("");
 
     // Using string config instead of official template
@@ -87,7 +90,9 @@ export default function OfficialTriggerPage() {
                 return;
             }
             const data = await deviceService.getUnofficialDevices(userId);
-            // Filter to show only connected devices
+            setAllDevices(data); // Save all their devices so we can map names correctly in the table
+            
+            // Filter to show only connected devices in the dropdown
             const connectedDevices = data.filter((device: Device) => device.session_status === 'connected');
             setDevices(connectedDevices);
         } catch (error) {
@@ -101,12 +106,23 @@ export default function OfficialTriggerPage() {
             setSelectedSheet(sheet || null);
             if (sheet) {
                 loadSheetColumns(sheet.id);
+                fetchTriggers(sheet.id);
             }
         } else {
             setSelectedSheet(null);
             setColumns([]);
+            setTriggers([]);
         }
     }, [selectedSheetId, sheets]);
+
+    const fetchTriggers = async (sheetId: string) => {
+        try {
+            const data = await googleSheetService.listTriggers(sheetId);
+            setTriggers(data);
+        } catch (error) {
+            console.error("Failed to load triggers", error);
+        }
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -221,8 +237,11 @@ export default function OfficialTriggerPage() {
                 send_time_column: "",
                 message_column: ""
             });
-            setSelectedSheetId("");
+            // We KEEP the selectedSheetId so the trigger list remains visible!
             setSelectedDeviceId("");
+            if (selectedSheetId) {
+                fetchTriggers(selectedSheetId);
+            }
         } catch (error: any) {
             console.error("Trigger creation error:", error);
 
@@ -258,7 +277,49 @@ export default function OfficialTriggerPage() {
         }
     };
 
+    const handleStartTrigger = async (triggerId: string) => {
+        setActionLoading(triggerId);
+        try {
+            await googleSheetService.startTrigger(triggerId);
+            alert("✅ Trigger started successfully!");
+            if (selectedSheetId) fetchTriggers(selectedSheetId);
+        } catch (error: any) {
+            console.error(error);
+            alert("❌ Failed to start trigger");
+        } finally {
+            setActionLoading(null);
+        }
+    };
 
+    const handleStopTrigger = async (triggerId: string) => {
+        setActionLoading(triggerId);
+        try {
+            await googleSheetService.stopTrigger(triggerId);
+            alert("✅ Trigger stopped successfully!");
+            if (selectedSheetId) fetchTriggers(selectedSheetId);
+        } catch (error: any) {
+            console.error(error);
+            alert("❌ Failed to stop trigger");
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleDeleteTrigger = async (triggerId: string) => {
+        if (!window.confirm("Are you sure you want to delete this trigger? This action cannot be undone.")) return;
+        
+        setActionLoading(triggerId);
+        try {
+            await googleSheetService.deleteTrigger(triggerId);
+            alert("✅ Trigger deleted successfully!");
+            if (selectedSheetId) fetchTriggers(selectedSheetId);
+        } catch (error: any) {
+            console.error(error);
+            alert("❌ Failed to delete trigger");
+        } finally {
+            setActionLoading(null);
+        }
+    };
 
     const getHistoryStatusColor = (status: string) => {
         switch (status.toLowerCase()) {
@@ -308,6 +369,73 @@ export default function OfficialTriggerPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Triggers List */}
+            {selectedSheetId && triggers.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+                    <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <Settings className="w-5 h-5 text-emerald-600" />
+                        Active Triggers for Selected Sheet
+                    </h2>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trigger Type</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Device</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {triggers.map((trigger) => (
+                                    <tr key={trigger.trigger_id}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                                            {trigger.trigger_type.replace(/_/g, " ")}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {allDevices.find(d => d.device_id === trigger.device_name)?.device_name || trigger.device_name || "Official API"}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${trigger.is_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                {trigger.is_enabled ? "Running" : "Stopped"}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
+                                            {!trigger.is_enabled ? (
+                                                <button
+                                                    onClick={() => handleStartTrigger(trigger.trigger_id)}
+                                                    disabled={actionLoading === trigger.trigger_id}
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs disabled:opacity-50"
+                                                >
+                                                    {actionLoading === trigger.trigger_id ? "..." : "Start"}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleStopTrigger(trigger.trigger_id)}
+                                                    disabled={actionLoading === trigger.trigger_id}
+                                                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs disabled:opacity-50"
+                                                >
+                                                    {actionLoading === trigger.trigger_id ? "..." : "Stop"}
+                                                </button>
+                                            )}
+                                            
+                                            <button
+                                                onClick={() => handleDeleteTrigger(trigger.trigger_id)}
+                                                disabled={actionLoading === trigger.trigger_id}
+                                                className="bg-gray-100 hover:bg-red-100 text-red-600 p-1.5 rounded disabled:opacity-50 transition-colors"
+                                                title="Delete Trigger"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Trigger Configuration */}

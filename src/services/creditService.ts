@@ -149,7 +149,7 @@ const creditService = {
         return response.data;
     },
 
-    initiatePayment: async (data: { plan_name: string, credits: number, price: number }, token: string) => {
+    initiatePayment: async (data: { plan_name: string, credits: number, price: number, allocated_to_user_id?: string }, token: string) => {
         const response = await axios.post(
             `${API_URL}/v1/credits/initiate-payment`,
             data,
@@ -162,6 +162,17 @@ const creditService = {
     verifyPayment: async (data: { razorpay_payment_id: string, razorpay_order_id: string, razorpay_signature: string }, token: string) => {
         const response = await axios.post(
             `${API_URL}/v1/credits/payment-callback`,
+            data,
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            }
+        );
+        return response.data;
+    },
+
+    allocateToUser: async (data: { order_txnid: string, busi_user_id: string }, token: string) => {
+        const response = await axios.post(
+            `${API_URL}/v1/credits/allocate-to-user`,
             data,
             {
                 headers: { Authorization: `Bearer ${token}` }

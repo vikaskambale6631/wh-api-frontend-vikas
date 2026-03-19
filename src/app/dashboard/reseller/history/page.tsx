@@ -21,6 +21,21 @@ export default function AuditHistoryPage() {
     const [endDate, setEndDate] = useState("")
     const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
     const [showDetailsModal, setShowDetailsModal] = useState(false)
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem('token') || localStorage.getItem('resellerToken');
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    setCurrentUserId(payload.sub);
+                } catch (e) {
+                    console.error("Failed to decode token", e);
+                }
+            }
+        }
+    }, [])
 
     const openDetailsModal = (log: AuditLog) => {
         setSelectedLog(log)
@@ -257,7 +272,9 @@ export default function AuditHistoryPage() {
                                                         <div className="flex flex-col">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-sm font-black text-gray-900 capitalize leading-none">{log.performed_by.name}</span>
-                                                                <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none px-1.5 py-0.5 text-[9px] font-black h-4 shadow-none tracking-widest">YOU</Badge>
+                                                                {currentUserId === log.performed_by.id && (
+                                                                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none px-1.5 py-0.5 text-[9px] font-black h-4 shadow-none tracking-widest">YOU</Badge>
+                                                                )}
                                                             </div>
                                                             <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">{log.performed_by.role}</span>
                                                         </div>
@@ -393,7 +410,12 @@ export default function AuditHistoryPage() {
                                                     {selectedLog.performed_by.name.substring(0, 2).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Admin User</p>
+                                                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                        <span>Admin User</span>
+                                                        {currentUserId === selectedLog.performed_by.id && (
+                                                            <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none px-1.5 py-0.5 text-[8px] font-black h-3.5 shadow-none tracking-widest">YOU</Badge>
+                                                        )}
+                                                    </div>
                                                     <p className="text-sm font-bold text-gray-900">{selectedLog.performed_by.name}</p>
                                                     <p className="text-[10px] text-gray-500 font-medium">{selectedLog.performed_by.role === 'reseller' ? 'Reseller' : selectedLog.performed_by.role}</p>
                                                 </div>

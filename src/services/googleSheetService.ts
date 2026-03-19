@@ -154,6 +154,26 @@ export const googleSheetService = {
         return response.data;
     },
 
+    listTriggers: async (sheetId: string) => {
+        const response = await api.get(`/google-sheets/${sheetId}/triggers`);
+        return response.data;
+    },
+
+    startTrigger: async (triggerId: string) => {
+        const response = await api.post(`/google-sheets/triggers/${triggerId}/start`);
+        return response.data;
+    },
+
+    stopTrigger: async (triggerId: string) => {
+        const response = await api.post(`/google-sheets/triggers/${triggerId}/stop`);
+        return response.data;
+    },
+
+    deleteTrigger: async (triggerId: string) => {
+        const response = await api.delete(`/google-sheets/triggers/${triggerId}`);
+        return response.data;
+    },
+
     getTriggerHistory: async (sheetId: string) => {
         try {
             // The backend returns a direct array: List[Dict]

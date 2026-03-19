@@ -2,19 +2,35 @@
 
 import { useState, useEffect } from "react"
 import DashboardLayout from "@/components/layout/DashboardLayout"
-import { ProfileHeader, ProfileStats, InfoSection, InfoField, AccountPlanCard, SecurityCard } from "@/components/profile/ProfileComponents"
-import { BusinessProfile } from "@/services/businessService"
+import { ProfileHeader, ProfileStats, PersonalInfoSection, BusinessInfoSection, AccountDetailsSection, SecuritySettingsSection } from "@/components/profile/ProfileComponents"
+import businessService, { BusinessProfile } from "@/services/businessService"
 
 export default function ProfilePage() {
     const [profileData, setProfileData] = useState<BusinessProfile | null>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        // Load profile data here
-        // For now, set null to avoid TypeScript error
-        setProfileData(null)
-        setLoading(false)
+        const fetchProfile = async () => {
+            try {
+                const token = localStorage.getItem("token")
+                if (!token) return
+                const data = await businessService.getProfile(token)
+                setProfileData(data)
+            } catch (err) {
+                console.error("Failed to load profile:", err)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchProfile()
     }, [])
+
+    const handleUpdate = async (updatedData: any) => {
+        const token = localStorage.getItem("token")
+        if (!token) return
+        const refreshed = await businessService.getProfile(token)
+        setProfileData(refreshed)
+    }
 
     if (loading) {
         return (
@@ -38,33 +54,15 @@ export default function ProfilePage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Main Info Column */}
-                    <div className="lg:col-span-2 space-y-10">
-
-                        {/* Personal Information */}
-                        <InfoSection title="Personal Information">
-                            <InfoField label="FULL NAME" value="rahul waghole" />
-                            <InfoField label="EMAIL ADDRESS" value="rahulwaghole14@gmail.com" />
-                            <InfoField label="USER ID" value="d1e0c262c9ed401099d186cb769e1652" fullWidth={true} />
-                            <InfoField label="MOBILE NUMBER" value="9881976526" />
-                            <InfoField label="COUNTRY" value="Not provided" />
-                            <InfoField label="ADDRESS" value="Not provided" fullWidth={true} />
-                        </InfoSection>
-
-                        <div className="border-t border-gray-100" />
-
-                        {/* Business Information */}
-                        <InfoSection title="Business Information">
-                            <InfoField label="COMPANY NAME" value="RSL Solution Pvt Ltd" />
-                            <InfoField label="ORGANIZATION TYPE" value="RSL Solution Pvt Ltd" />
-                            <InfoField label="ERP TYPE" value="Other" />
-                            <InfoField label="BANK NAME" value="Indusind bank" />
-                        </InfoSection>
+                    <div className="lg:col-span-2 space-y-8">
+                        <PersonalInfoSection data={profileData} onUpdate={handleUpdate} />
+                        <BusinessInfoSection data={profileData} onUpdate={handleUpdate} />
                     </div>
 
                     {/* Side Column */}
                     <div className="space-y-6">
-                        <AccountPlanCard data={profileData} />
-                        <SecurityCard />
+                        <AccountDetailsSection data={profileData} />
+                        <SecuritySettingsSection />
                     </div>
                 </div>
             </div>
