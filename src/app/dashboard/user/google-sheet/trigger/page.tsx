@@ -352,22 +352,7 @@ export default function OfficialTriggerPage() {
                     <RefreshCcw className="w-4 h-4" />
                     Refresh History
                 </button>
-                <div className="flex items-center gap-2">
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${isPolling ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                        <div className={`w-2 h-2 rounded-full ${isPolling ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                        {isPolling ? 'Auto-Polling Active' : 'Polling Inactive'}
-                    </div>
-                    
-                    <button 
-                        onClick={handleFireNow} 
-                        disabled={firing}
-                        className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors disabled:opacity-50"
-                        title="Process triggers immediately without waiting for next poll"
-                    >
-                        {firing ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                        {firing ? 'Processing...' : 'Fire Triggers Now'}
-                    </button>
-                </div>
+
             </div>
 
             {/* Triggers List */}

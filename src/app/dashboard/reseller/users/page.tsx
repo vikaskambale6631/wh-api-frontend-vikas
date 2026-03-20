@@ -14,11 +14,10 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { 
     Loader2, 
-    UserX, 
     Search, 
     Edit, 
     Trash2, 
@@ -27,7 +26,10 @@ import {
     WifiOff, 
     Users,
     AlertCircle,
-    Plus
+    Plus,
+    Clock,
+    UserPlus,
+    Eye
 } from "lucide-react";
 
 interface Analytics {
@@ -36,7 +38,6 @@ interface Analytics {
     connected_users: number;
     disconnected_users: number;
     plan_expired_users: number;
-    messages_sent: number;
 }
 
 export default function ResellerUsersPage() {
@@ -47,39 +48,52 @@ export default function ResellerUsersPage() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const token = localStorage.getItem('token') || localStorage.getItem('resellerToken');
-                let resellerId = localStorage.getItem('reseller_id') || localStorage.getItem('user_id');
+    const fetchData = async () => {
+        try {
+            const token = localStorage.getItem('token') || localStorage.getItem('resellerToken');
+            let resellerId = localStorage.getItem('reseller_id') || localStorage.getItem('user_id');
 
-                if (!token || !resellerId || resellerId === 'undefined') {
-                    // Fallback to searching all tokens if initial attempt fails
-                    setError("Authentication data missing. Please login again.");
-                    setLoading(false);
-                    return;
-                }
-
-                // Call the new analytics endpoint and users endpoint
-                const [usersData, stats] = await Promise.all([
-                    businessService.getBusinessesByReseller(resellerId, token),
-                    businessService.getAnalytics(token)
-                ]);
-
-                setUsers(usersData);
-                setAnalytics(stats);
-            } catch (err) {
-                console.error("Failed to fetch data:", err);
-                const error = err as AxiosError<{ detail: any }>;
-                const detail = error.response?.data?.detail;
-                setError(typeof detail === 'string' ? detail : "Failed to load users data. Server might be offline.");
-            } finally {
+            if (!token || !resellerId || resellerId === 'undefined') {
+                setError("Authentication session invalid. Please log in.");
                 setLoading(false);
+                return;
             }
-        };
 
+            const [usersData, stats] = await Promise.all([
+                businessService.getBusinessesByReseller(resellerId, token),
+                businessService.getAnalytics(token)
+            ]);
+
+            setUsers(usersData);
+            setAnalytics(stats);
+        } catch (err) {
+            console.error("Failed to fetch intelligence:", err);
+            setError("Communication link failed. Please check your connectivity.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchData();
     }, []);
+
+    const handleEdit = (userId: string) => {
+        router.push(`/dashboard/reseller/users/${userId}?edit=true`);
+    };
+
+    const handleDelete = async (userId: string, name: string) => {
+        if (!confirm(`Are you sure you want to delete user "${name}"?`)) return;
+        try {
+            const token = localStorage.getItem('token') || localStorage.getItem('resellerToken');
+            if (!token) return;
+            await businessService.delete(userId, token);
+            setUsers(users.filter(u => u.busi_user_id !== userId));
+            fetchData(); // Refresh analytics
+        } catch (err) {
+            alert("Deletion blocked by active system dependencies.");
+        }
+    };
 
     const filteredUsers = users.filter(user => 
         (user.business.business_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -90,48 +104,27 @@ export default function ResellerUsersPage() {
 
     if (loading) {
         return (
-            <div className="flex h-[70vh] items-center justify-center p-8 bg-background">
-                <div className="flex flex-col items-center space-y-4">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    <p className="text-lg font-medium text-muted-foreground">Fetching User Intelligence...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="p-8 h-[70vh] flex flex-col items-center justify-center text-center space-y-6">
-                <div className="h-20 w-20 rounded-full bg-destructive/10 flex items-center justify-center">
-                    <AlertCircle className="h-10 w-10 text-destructive" />
-                </div>
-                <div className="space-y-2">
-                    <h2 className="text-2xl font-bold">Network Connectivity Issue</h2>
-                    <p className="max-w-md text-muted-foreground">{error}</p>
-                </div>
-                <Button variant="default" size="lg" className="px-10" onClick={() => window.location.reload()}>
-                    Retry Connection
-                </Button>
+            <div className="flex h-[70vh] items-center justify-center bg-background">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
             </div>
         );
     }
 
     return (
-        <div className="flex-1 space-y-8 p-8 max-w-[1700px] mx-auto animate-in fade-in duration-700">
-            {/* Unified Header section */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="flex-1 space-y-6 p-8 max-w-[1600px] mx-auto transition-all duration-300">
+            {/* Header Area */}
+            <div className="flex items-center justify-between mb-8">
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <h2 className="text-3xl font-bold tracking-tight text-slate-800 flex items-center gap-3">
                         <Users className="h-8 w-8 text-blue-600" />
-                        <h2 className="text-4xl font-extrabold tracking-tight">User Management</h2>
-                    </div>
-                    <p className="text-lg text-muted-foreground font-medium pl-1">
-                        Manage and monitor all your users across the platform ecosystem.
+                        User Management
+                    </h2>
+                    <p className="text-muted-foreground font-medium pl-1">
+                        Manage and monitor all your users
                     </p>
                 </div>
                 <Button 
-                    size="lg" 
-                    className="bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-500/20 transform hover:-translate-y-1 transition-all duration-300 rounded-xl px-8" 
+                    className="bg-blue-600 hover:bg-blue-700 h-11 px-6 text-base font-semibold rounded-lg shadow-md"
                     onClick={() => router.push('/dashboard/reseller/users/create')}
                 >
                     <Plus className="mr-2 h-5 w-5" />
@@ -139,31 +132,24 @@ export default function ResellerUsersPage() {
                 </Button>
             </div>
 
-            {/* Smart Analytics Dashboard */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Production Grade Stat Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
                 {[
-                    { label: "TOTAL USERS", value: analytics?.total_users || 0, color: "bg-blue-600", secondary: "blue", icon: Users },
-                    { label: "CONNECTED", value: analytics?.connected_users || 0, color: "bg-emerald-500", secondary: "emerald", icon: Wifi },
-                    { label: "DISCONNECTED", value: analytics?.disconnected_users || 0, color: "bg-rose-500", secondary: "rose", icon: WifiOff },
-                    { label: "PLAN EXPIRED", value: analytics?.plan_expired_users || 0, color: "bg-orange-500", secondary: "orange", icon: AlertCircle }
+                    { label: "TOTAL USERS", value: analytics?.total_users || 0, color: "bg-blue-600", icon: Users },
+                    { label: "CONNECTED", value: analytics?.connected_users || 0, color: "bg-emerald-500", icon: Wifi },
+                    { label: "DISCONNECTED", value: analytics?.disconnected_users || 0, color: "bg-rose-500", icon: WifiOff },
+                    { label: "PLAN EXPIRED", value: analytics?.plan_expired_users || 0, color: "bg-orange-500", icon: Clock }
                 ].map((stat, i) => (
-                    <Card key={i} className="group overflow-hidden border-none shadow-lg hover:shadow-2xl transition-all duration-500 bg-card/60 backdrop-blur-xl border border-border/50">
-                        <div className={`h-1.5 w-full ${stat.color} opacity-80 group-hover:opacity-100 transition-opacity`} />
-                        <CardContent className="p-7">
+                    <Card key={i} className="border-none shadow-lg overflow-hidden relative group">
+                        <div className={`absolute top-0 left-0 w-full h-1 ${stat.color} opacity-80`} />
+                        <CardContent className="p-6">
                             <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="text-xs font-bold tracking-[0.1em] text-muted-foreground uppercase">{stat.label}</p>
-                                    <h3 className="text-4xl font-black tracking-tighter">{stat.value}</h3>
+                                <div className="space-y-2">
+                                    <p className="text-xs font-bold text-slate-500 tracking-wider uppercase">{stat.label}</p>
+                                    <h3 className="text-4xl font-extrabold text-slate-900 leading-none">{stat.value}</h3>
                                 </div>
-                                <div className={`p-4 rounded-2xl ${stat.color} bg-opacity-10 group-hover:scale-110 transition-transform duration-500`}>
-                                   {React.createElement(stat.icon, { 
-                                       className: `h-8 w-8 ${
-                                           stat.secondary === 'blue' ? 'text-blue-600' : 
-                                           stat.secondary === 'emerald' ? 'text-emerald-500' : 
-                                           stat.secondary === 'rose' ? 'text-rose-500' : 
-                                           'text-orange-500'
-                                       }` 
-                                   })}
+                                <div className={`p-4 rounded-2xl ${stat.color} bg-opacity-10 group-hover:scale-105 transition-transform`}>
+                                   {React.createElement(stat.icon, { className: `h-8 w-8 ${stat.color.replace('bg-', 'text-')}` })}
                                 </div>
                             </div>
                         </CardContent>
@@ -171,130 +157,121 @@ export default function ResellerUsersPage() {
                 ))}
             </div>
 
-            {/* Premium Table Container */}
-            <Card className="border-none shadow-2xl bg-card/60 backdrop-blur-xl overflow-hidden rounded-3xl border border-border/50">
-                <CardHeader className="px-8 pt-8 pb-4">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                        <div className="space-y-1">
-                            <CardTitle className="text-2xl font-bold tracking-tight">User Database</CardTitle>
-                            <p className="text-sm text-muted-foreground">{filteredUsers.length} users active in current view</p>
-                        </div>
-                        <div className="relative w-full lg:w-[450px] group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
+            {/* Table Area with Embedded Search */}
+            <Card className="border-none shadow-xl rounded-2xl overflow-hidden bg-white">
+                <div className="p-8 pb-4">
+                    <div className="flex flex-col gap-6">
+                        <h3 className="text-xl font-bold text-slate-800">User Analytics</h3>
+                        <div className="relative w-full md:w-[450px]">
+                            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                             <Input 
-                                placeholder="Search by name, email, mobile, or company..." 
-                                className="pl-12 h-14 bg-muted/40 border-none shadow-inner ring-1 ring-border/50 focus:ring-2 focus:ring-blue-500/50 rounded-2xl text-base transition-all"
+                                placeholder="Search users by name, email, mobile, or company..." 
+                                className="pl-14 h-14 bg-slate-50 border-slate-200 rounded-xl text-base focus:bg-white transition-all focus:ring-2 focus:ring-blue-500/20"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
                     </div>
-                </CardHeader>
-                <CardContent className="px-8 pb-8">
-                    {filteredUsers.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-24 bg-muted/10 rounded-[2.5rem] border-2 border-dashed border-border/60 text-muted-foreground">
-                            <div className="h-24 w-24 rounded-[2rem] bg-muted/30 flex items-center justify-center mb-6 rotate-12 group-hover:rotate-0 transition-transform">
-                                <UserX className="h-12 w-12 opacity-20" />
-                            </div>
-                            <h4 className="text-2xl font-bold text-foreground mb-2">No Matching Intel Found</h4>
-                            <p className="text-lg">Try adjusting your search query or expanding filters.</p>
-                            <Button variant="link" className="text-blue-500 text-lg mt-4 flex items-center gap-2" onClick={() => setSearchQuery("")}>
-                                <Plus className="h-4 w-4 rotate-45" /> Clear Search
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="rounded-2xl border border-border/40 overflow-hidden bg-background/40">
-                            <Table>
-                                <TableHeader className="bg-muted/50">
-                                    <TableRow className="hover:bg-transparent border-border/30">
-                                        <TableHead className="py-6 font-bold uppercase text-[11px] tracking-widest pl-8">USER</TableHead>
-                                        <TableHead className="py-6 font-bold uppercase text-[11px] tracking-widest">COMPANY</TableHead>
-                                        <TableHead className="py-6 font-bold uppercase text-[11px] tracking-widest">CONTACT</TableHead>
-                                        <TableHead className="py-6 font-bold uppercase text-[11px] tracking-widest">PLAN</TableHead>
-                                        <TableHead className="py-6 font-bold uppercase text-[11px] tracking-widest">CREDITS</TableHead>
-                                        <TableHead className="py-6 font-bold uppercase text-[11px] tracking-widest">STATUS</TableHead>
-                                        <TableHead className="py-6 font-bold uppercase text-[11px] tracking-widest text-right pr-8">ACTIONS</TableHead>
+                </div>
+
+                <div className="px-8 pb-8">
+                    <div className="border rounded-xl overflow-hidden">
+                        <Table>
+                            <TableHeader className="bg-slate-50/80">
+                                <TableRow className="border-slate-200 hover:bg-transparent">
+                                    <TableHead className="py-5 font-bold text-xs uppercase text-slate-500 tracking-wider pl-8">USER</TableHead>
+                                    <TableHead className="py-5 font-bold text-xs uppercase text-slate-500 tracking-wider">COMPANY</TableHead>
+                                    <TableHead className="py-5 font-bold text-xs uppercase text-slate-500 tracking-wider">CONTACT</TableHead>
+                                    <TableHead className="py-5 font-bold text-xs uppercase text-slate-500 tracking-wider">PLAN</TableHead>
+                                    <TableHead className="py-5 font-bold text-xs uppercase text-slate-500 tracking-wider">CREDITS</TableHead>
+                                    <TableHead className="py-5 font-bold text-xs uppercase text-slate-500 tracking-wider">STATUS</TableHead>
+                                    <TableHead className="py-5 font-bold text-xs uppercase text-slate-500 tracking-wider text-right pr-8">ACTIONS</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredUsers.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="text-center py-20 text-slate-400">
+                                            No user accounts match your search query.
+                                        </TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredUsers.map((user) => {
-                                        const creditRatio = user.wallet.credits_remaining / (user.wallet.credits_allocated || 1);
-                                        const isLowCredits = creditRatio < 0.2;
-                                        
-                                        return (
-                                            <TableRow key={user.busi_user_id} className="group hover:bg-primary/5 transition-all duration-300 border-border/20">
-                                                <TableCell className="py-6 pl-8">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-xl group-hover:text-blue-600 transition-colors leading-tight">{user.profile.name}</span>
-                                                        <span className="text-sm font-medium text-muted-foreground">{user.profile.email}</span>
-                                                        <div className="flex items-center gap-1.5 mt-2">
-                                                            <div className="h-1.5 w-1.5 rounded-full bg-blue-500 opacity-50" />
-                                                            <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-70">Joined: {new Date(user.profile.created_at || new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-6">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-lg text-foreground/90">{user.business.business_name}</span>
-                                                        <span className="text-xs font-mono text-muted-foreground/70 uppercase tracking-tighter mt-1 bg-muted/60 px-2 py-0.5 rounded w-fit">GSTIN: {user.business.gstin || 'NOT PROVIDED'}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-6">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-foreground font-mono">{user.profile.phone}</span>
-                                                        <span className="text-xs text-muted-foreground font-medium uppercase mt-1">
-                                                            PIN: {user.address?.pincode || 'N/A'}
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-6">
-                                                    <Badge variant="outline" className="px-4 py-1.5 font-black border-2 border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 transition-colors uppercase tracking-widest text-[11px] rounded-lg">
-                                                        {user.plan_name || 'DEMO SESSION'}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="py-6">
-                                                    <div className="flex flex-col w-[180px]">
-                                                        <div className="flex items-end justify-between mb-2">
-                                                            <span className="text-lg font-black tracking-tight">{user.wallet.credits_remaining.toLocaleString()} <span className="text-xs font-bold text-muted-foreground">/ {user.wallet.credits_allocated.toLocaleString()}</span></span>
-                                                        </div>
-                                                        <div className="w-full bg-muted/60 h-2 rounded-full overflow-hidden flex">
-                                                            <div 
-                                                                className={`h-full transition-all duration-1000 ease-out ${isLowCredits ? 'bg-rose-500' : 'bg-blue-600'}`} 
-                                                                style={{ width: `${Math.min(100, creditRatio * 100)}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-60 mt-1.5 px-0.5">Remaining / Total</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-6">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`h-2.5 w-2.5 rounded-full ${user.connection_status === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                                                        <span className={`text-[12px] font-bold uppercase tracking-tight ${user.connection_status === 'connected' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                            {user.connection_status || 'Disconnected'}
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-6 text-right pr-8">
-                                                    <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all" title="Edit User">
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-all" title="View Details" onClick={() => router.push(`/dashboard/reseller/users/${user.busi_user_id}`)}>
-                                                            <ExternalLink className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg transition-all" title="Delete User">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                </CardContent>
+                                ) : filteredUsers.map((user) => (
+                                    <TableRow key={user.busi_user_id} className="hover:bg-slate-50/50 transition-colors border-slate-100 min-h-[90px]">
+                                        <TableCell className="py-6 pl-8">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-base text-slate-900">{user.profile.name}</span>
+                                                <span className="text-xs text-slate-500 font-medium">{user.profile.email}</span>
+                                                <span className="text-[10px] text-slate-400 font-bold mt-1 uppercase">Joined: {new Date(user.profile.created_at || new Date()).toLocaleDateString('en-GB')}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="py-6">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-800">{user.business.business_name}</span>
+                                                <span className="text-[10px] text-slate-400 font-bold uppercase">{user.business.gstin || 'No GSTIN'}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="py-6 font-mono font-bold text-slate-600 text-sm">
+                                            <div className="flex flex-col">
+                                                <span>{user.profile.phone}</span>
+                                                <span className="text-[10px] text-slate-400 font-bold uppercase">{user.address?.pincode || 'No pincode'}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="py-6">
+                                            <Badge variant="outline" className="px-3 py-1 bg-blue-50 text-blue-600 border-blue-200 font-bold text-[10px] rounded-md gap-2">
+                                                <ExternalLink className="h-3 w-3" />
+                                                {user.plan_name || 'DEMO'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="py-6">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-slate-900">
+                                                    {user.wallet.credits_remaining.toLocaleString()} / {user.wallet.credits_allocated.toLocaleString()}
+                                                </span>
+                                                <span className="text-[10px] text-slate-400 font-semibold uppercase">Remaining / Total</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="py-6">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`h-2.5 w-2.5 rounded-full ${user.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                                <Badge className={`${user.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} border-none shadow-none font-bold text-[10px] px-3`}>
+                                                    {user.status === 'active' ? 'Active' : 'Inactive'}
+                                                </Badge>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="py-6 text-right pr-8">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-9 w-9 text-blue-500 hover:bg-blue-50 rounded-lg"
+                                                    onClick={() => router.push(`/dashboard/reseller/users/${user.busi_user_id}`)}
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-9 w-9 text-emerald-500 hover:bg-emerald-50 rounded-lg"
+                                                    onClick={() => handleEdit(user.busi_user_id)}
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-9 w-9 text-rose-500 hover:bg-rose-50 rounded-lg"
+                                                    onClick={() => handleDelete(user.busi_user_id, user.profile.name)}
+                                                >
+                                                    <UserPlus className="h-4 w-4 rotate-45" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
             </Card>
         </div>
     );

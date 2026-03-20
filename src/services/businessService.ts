@@ -107,6 +107,22 @@ export const businessService = {
             headers: { Authorization: `Bearer ${token}` }
         });
         return response.data;
+    },
+
+    // Update a business user
+    update: async (userId: string, data: any, token: string) => {
+        const response = await axios.put(`${API_URL}/${userId}`, data, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        return response.data;
+    },
+
+    // Delete a business user
+    delete: async (userId: string, token: string) => {
+        const response = await axios.delete(`${API_URL}/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        return response.data;
     }
 };
 
