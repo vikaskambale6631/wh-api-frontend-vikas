@@ -64,6 +64,10 @@ export interface BusinessProfile {
         pincode?: string;
         country?: string;
     };
+    // [NEW]
+    plan_name?: string;
+    plan_expiry?: string;
+    connection_status?: 'connected' | 'disconnected';
 }
 
 export const businessService = {
@@ -92,6 +96,14 @@ export const businessService = {
     // Get all businesses for a reseller (Called by Reseller)
     getBusinessesByReseller: async (resellerId: string, token: string) => {
         const response = await axios.get(`${API_URL}/reseller/${resellerId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        return response.data;
+    },
+
+    // Get Reseller Analytics (Stats for user management page)
+    getAnalytics: async (token: string) => {
+        const response = await axios.get(`${API_URL}/analytics`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         return response.data;
