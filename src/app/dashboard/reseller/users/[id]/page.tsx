@@ -267,22 +267,168 @@ export default function UserDetailPage({ params, searchParams }: PageProps) {
                 </Card>
             ) : (
                 /* Original View Profile Logic - Redacted here for brevity but kept in file */
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {[
-                        { label: "TOTAL CREDITS", value: user.wallet.credits_allocated, color: "bg-blue-600" },
-                        { label: "USED CREDITS", value: user.wallet.credits_used, color: "bg-indigo-600" },
-                        { label: "REMAINING CREDITS", value: user.wallet.credits_remaining, color: "bg-emerald-500" },
-                        { label: "WALLET BALANCE", value: "₹0", color: "bg-orange-500" }
-                    ].map((stat, i) => (
-                        <div key={i} className={`${stat.color} p-4 rounded-xl shadow-md text-white flex flex-col justify-center min-h-[85px]`}>
-                            <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-1">{stat.label}</p>
-                            <h4 className="text-2xl font-black">{stat.value.toLocaleString()}</h4>
+                <div className="space-y-8 animate-in slide-in-from-bottom duration-700">
+                    {/* Analytics Summary Stats Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {[
+                            { label: "TOTAL CREDITS", value: user.wallet.credits_allocated, color: "bg-gradient-to-br from-blue-600 to-blue-700", icon: CreditCard },
+                            { label: "USED CREDITS", value: user.wallet.credits_used, color: "bg-gradient-to-br from-indigo-600 to-indigo-800" },
+                            { label: "REMAINING CREDITS", value: user.wallet.credits_remaining, color: "bg-gradient-to-br from-emerald-500 to-emerald-600" },
+                            { label: "WALLET BALANCE", value: "₹0", color: "bg-gradient-to-br from-orange-500 to-orange-600" }
+                        ].map((stat, i) => (
+                            <div key={i} className={`${stat.color} p-5 rounded-2xl shadow-xl shadow-slate-200/50 text-white flex flex-col justify-center min-h-[90px] border border-white/10 hover:scale-[1.02] transition-transform cursor-default`}>
+                                <p className="text-[10px] font-black opacity-70 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                                <h4 className="text-3xl font-black tabular-nums">{stat.value.toLocaleString()}</h4>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Middle Column: Details modules */}
+                        <div className="lg:col-span-2 space-y-8">
+                            {/* Personal Details Card */}
+                            <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white overflow-hidden">
+                                <CardContent className="p-0">
+                                    <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100 flex items-center justify-between">
+                                        <h3 className="text-slate-700 font-bold text-sm flex items-center gap-2">
+                                            <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                                                <User className="h-4 w-4 text-blue-600" />
+                                            </div>
+                                            Profile Information
+                                        </h3>
+                                        <Button variant="outline" size="sm" onClick={() => router.push(`?edit=true`)} className="h-9 px-4 rounded-xl font-bold text-xs border-slate-200 hover:bg-slate-100 transition-colors gap-2">
+                                            <Edit className="h-3 w-3" />
+                                            Update Profile
+                                        </Button>
+                                    </div>
+                                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
+                                        {[
+                                            { label: "Full Name", value: user.profile.name, icon: User },
+                                            { label: "Email Address", value: user.profile.email, icon: Mail },
+                                            { label: "Mobile Number", value: user.profile.phone, icon: Phone },
+                                            { label: "Username", value: user.profile.username || 'N/A', icon: User },
+                                            { label: "Role/Type", value: user.role, icon: Briefcase },
+                                            { label: "Joining Date", value: user.profile.created_at ? new Date(user.profile.created_at).toLocaleDateString() : 'N/A', icon: Calendar }
+                                        ].map((field, idx) => (
+                                            <div key={idx} className="space-y-1.5 group">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{field.label}</p>
+                                                <div className="flex items-center gap-3 bg-slate-50/50 p-3.5 rounded-2xl group-hover:bg-slate-50 transition-colors border border-transparent group-hover:border-slate-100">
+                                                    <field.icon className="h-4 w-4 text-slate-400" />
+                                                    <span className="text-sm font-bold text-slate-700">{field.value}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Business Context Card */}
+                            <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white overflow-hidden">
+                                <CardContent className="p-0">
+                                    <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100">
+                                        <h3 className="text-slate-700 font-bold text-sm flex items-center gap-2">
+                                            <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                                                <Building2 className="h-4 w-4 text-emerald-600" />
+                                            </div>
+                                            Business Details
+                                        </h3>
+                                    </div>
+                                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
+                                        {[
+                                            { label: "Company Name", value: user.business.business_name },
+                                            { label: "Organization Type", value: user.business.business_description || 'Private Limited' },
+                                            { label: "GSTIN Number", value: user.business.gstin || 'NOT PROVIDED' },
+                                            { label: "ERP System", value: user.business.erp_system || 'None Connected' }
+                                        ].map((field, idx) => (
+                                            <div key={idx} className="space-y-1.5">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{field.label}</p>
+                                                <div className="bg-emerald-50/30 p-3.5 rounded-2xl border border-emerald-100/50">
+                                                    <span className="text-sm font-bold text-emerald-900">{field.value}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
-                    ))}
+
+                        {/* Right Column: Address & Plan Metadata */}
+                        <div className="space-y-8">
+                            {/* Status and Summary Header Card */}
+                            <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-slate-900 text-white overflow-hidden p-8 flex flex-col items-center text-center">
+                                <div className="h-20 w-20 rounded-full bg-slate-800 border-4 border-slate-700 flex items-center justify-center mb-4">
+                                     <User className="h-10 w-10 text-slate-300" />
+                                </div>
+                                <h3 className="text-xl font-bold">{user.profile.name}</h3>
+                                <p className="text-slate-400 text-xs font-medium mb-4">{user.profile.email}</p>
+                                <div className="flex gap-2">
+                                    <Badge className="bg-blue-600/20 text-blue-400 border-blue-600/30 hover:bg-blue-600/20 px-3 py-1 font-bold text-[10px] uppercase">{user.role}</Badge>
+                                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 px-3 py-1 font-bold text-[10px] uppercase">{user.status}</Badge>
+                                </div>
+                            </Card>
+
+                            {/* Plan & Wallet Card */}
+                            <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white overflow-hidden">
+                                <div className="p-6 space-y-6">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CURRENT PLAN</span>
+                                            <Badge className="bg-amber-100 text-amber-700 border-none font-black text-xs px-3">{user.plan_name || 'DEMO'}</Badge>
+                                        </div>
+                                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                             <div className="h-full bg-blue-600 rounded-full" style={{ width: `${(user.wallet.credits_remaining / user.wallet.credits_allocated) * 100}%` }}></div>
+                                        </div>
+                                        <div className="flex justify-between text-[11px] font-bold">
+                                            <span className="text-slate-500">CREDITS REMAINING</span>
+                                            <span className="text-blue-600">{user.wallet.credits_remaining.toLocaleString()} / {user.wallet.credits_allocated.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="border-t pt-6 space-y-4">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ACCOUNT METADATA</p>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="text-slate-500 font-medium">WhatsApp Mode</span>
+                                                <span className="font-bold text-slate-700">{user.whatsapp_mode || 'Official'}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="text-slate-500 font-medium">Account Expiry</span>
+                                                <span className="font-bold text-slate-700">{user.plan_expiry || 'Forever'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+
+                            {/* Location Card */}
+                            <Card className="border-none shadow-xl shadow-slate-100 rounded-3xl bg-white overflow-hidden">
+                                <div className="p-6 space-y-6">
+                                    <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                        <MapPin className="h-4 w-4 text-emerald-500" />
+                                        Address
+                                    </h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Full Address</p>
+                                            <p className="text-sm font-bold text-slate-700 mt-1 leading-relaxed">{user.address?.full_address || 'No address provided.'}</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Pincode</p>
+                                                <p className="text-sm font-bold text-slate-700 mt-1">{user.address?.pincode || 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Country</p>
+                                                <p className="text-sm font-bold text-slate-700 mt-1">{user.address?.country || 'India'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
+                    </div>
                 </div>
             )}
-            
-            {/* ... Rest of the view details code we built in Step 1663 is here too ... */}
         </div>
     );
 }
