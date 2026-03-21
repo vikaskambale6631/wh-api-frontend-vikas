@@ -5,6 +5,7 @@ import { ShoppingCart, CreditCard, ArrowRight, Package, Calendar, CheckCircle, C
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import creditService from "@/services/creditService"
+import { API_BASE_URL } from "@/config/api"
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<any[]>([])
@@ -18,7 +19,7 @@ export default function OrdersPage() {
     const fetchOrders = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await fetch('http://localhost:8000/api/v1/credits/orders', {
+            const response = await fetch(`${API_BASE_URL}/v1/credits/orders`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
             if (response.ok) {

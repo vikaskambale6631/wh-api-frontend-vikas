@@ -6,6 +6,7 @@ import { Shield, RefreshCw, Search, Calendar, CreditCard, ArrowLeft, AlertCircle
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import creditService, { MessageUsageLog } from "@/services/creditService"
+import { API_BASE_URL } from "@/config/api"
 
 export default function CreditUsagePage() {
     const router = useRouter()
@@ -37,9 +38,10 @@ export default function CreditUsagePage() {
                 return
             }
 
-            // First check if backend is running
+            // First check if backend is running - Use production URL if available
             try {
-                const healthResponse = await fetch('http://localhost:8000/health')
+                const healthUrl = API_BASE_URL.replace('/api', '') + '/health'
+                const healthResponse = await fetch(healthUrl)
                 if (!healthResponse.ok) {
                     throw new Error('Backend not healthy')
                 }
