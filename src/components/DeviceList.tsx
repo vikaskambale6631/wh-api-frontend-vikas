@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { deviceService, Device } from '@/services/deviceService';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import { getErrorMessage } from '@/utils/error';
+import { useModal } from '@/context/ModalContext';
 
 export default function DeviceList({ userId }: { userId: string }) {
     const [unofficialDevices, setUnofficialDevices] = useState<Device[]>([]);
@@ -13,6 +14,7 @@ export default function DeviceList({ userId }: { userId: string }) {
     const [showQR, setShowQR] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [activeActionDeviceId, setActiveActionDeviceId] = useState<string | null>(null);
+    const { showAlert, showConfirm } = useModal();
 
     // Modal State
     const [showAddModal, setShowAddModal] = useState(false);
@@ -70,7 +72,7 @@ export default function DeviceList({ userId }: { userId: string }) {
                         detectedLogout = true;
 
                         // Force UI alert
-                        alert(`⚠️ Device "${latestDevice.device_name}" was logged out from your mobile device. Please remove it and reconnect.`);
+                        showAlert("Device Logout", `⚠️ Device "${latestDevice.device_name}" was logged out from your mobile device. Please remove it and reconnect.`);
                         break; // One alert is enough
                     }
                 }
@@ -110,7 +112,7 @@ export default function DeviceList({ userId }: { userId: string }) {
             await fetchDevices();
         } catch (error) {
             console.error("❌ Failed to add device:", error);
-            alert(`Failed to add device: ${getErrorMessage(error)}`);
+            showAlert("Error", `Failed to add device: ${getErrorMessage(error)}`);
         } finally {
             setActionLoading(false);
         }
@@ -118,42 +120,45 @@ export default function DeviceList({ userId }: { userId: string }) {
 
     const handleLogout = async (deviceId: string, deviceName: string) => {
         // 🔥 REQUIREMENT: "Logout = Remove" (Hard Rule)
-        // eslint-disable-next-line no-restricted-globals
-        if (confirm(`Are you sure you want to disconnect "${deviceName}"? The device will be removed permanently.`)) {
-            try {
-                setActiveActionDeviceId(deviceId);
-                console.log("🗑️ Logging out device:", { deviceId, deviceName });
+        showConfirm(
+            "Confirm Disconnect",
+            `Are you sure you want to disconnect "${deviceName}"? The device will be removed permanently.`,
+            async () => {
+                try {
+                    setActiveActionDeviceId(deviceId);
+                    console.log("🗑️ Logging out device:", { deviceId, deviceName });
 
-                await deviceService.logoutDevice(deviceId);
-                console.log("✅ Device logged out successfully");
+                    await deviceService.logoutDevice(deviceId);
+                    console.log("✅ Device logged out successfully");
 
-                // Regardless of backend response details, we treat it as removed
-                alert("Device logged out and removed successfully.");
+                    // Regardless of backend response details, we treat it as removed
+                    showAlert("Success", "Device logged out and removed successfully.");
 
-                // Force refetch to ensure UI reflects DB state immediately
-                await fetchDevices();
-            } catch (error: any) {
-                console.error("❌ Logout failed:", error);
-                // Even if it fails (e.g. 404), refresh the list as it might be gone
-                await fetchDevices();
-                if (error.response?.status !== 404) {
-                    alert(`Failed to logout device: ${error.response?.data?.error || 'Unknown error'}`);
+                    // Force refetch to ensure UI reflects DB state immediately
+                    await fetchDevices();
+                } catch (error: any) {
+                    console.error("❌ Logout failed:", error);
+                    // Even if it fails (e.g. 404), refresh the list as it might be gone
+                    await fetchDevices();
+                    if (error.response?.status !== 404) {
+                        showAlert("Error", `Failed to logout device: ${error.response?.data?.error || 'Unknown error'}`);
+                    }
+                } finally {
+                    setActiveActionDeviceId(null);
                 }
-            } finally {
-                setActiveActionDeviceId(null);
             }
-        }
+        );
     };
 
     const handleHealDevices = async () => {
         try {
             setActionLoading(true);
             const result = await deviceService.healOrphanedDevices();
-            alert(result.message);
+            showAlert("Heal Results", result.message);
             await fetchDevices();
         } catch (error) {
             console.error("Heal failed:", error);
-            alert(`Failed to heal devices: ${getErrorMessage(error)}`);
+            showAlert("Error", `Failed to heal devices: ${getErrorMessage(error)}`);
         } finally {
             setActionLoading(false);
         }
@@ -164,10 +169,10 @@ export default function DeviceList({ userId }: { userId: string }) {
             setActiveActionDeviceId(device.device_id);
             await deviceService.reconnectDevice(device.device_id);
             await fetchDevices();
-            alert("Reconnection initiated successfully!");
+            showAlert("Success", "Reconnection initiated successfully!");
         } catch (error) {
             console.error("Reconnect failed:", error);
-            alert(`Failed to reconnect: ${getErrorMessage(error)}`);
+            showAlert("Error", `Failed to reconnect: ${getErrorMessage(error)}`);
         } finally {
             setActiveActionDeviceId(null);
         }
@@ -190,7 +195,7 @@ export default function DeviceList({ userId }: { userId: string }) {
         setActiveActionDeviceId(null);
         // Force refetch to ensure UI reflects DB state immediately
         await fetchDevices();
-        alert("Device Connected Successfully!");
+        showAlert("Success", "Device Connected Successfully!");
     };
 
     const renderDeviceCard = (device: Device) => {
@@ -265,7 +270,7 @@ export default function DeviceList({ userId }: { userId: string }) {
                                 /* CONNECTED STATE - Show connected status */
                                 <>
                                     <button
-                                        onClick={() => alert("Use Device feature coming soon!")}
+                                        onClick={() => showAlert("Feature Update", "Use Device feature coming soon!")}
                                         disabled={activeActionDeviceId === device.device_id}
                                         className="flex-1 bg-green-50 text-green-700 hover:bg-green-100 py-2 rounded transition-colors disabled:opacity-60 font-medium"
                                     >

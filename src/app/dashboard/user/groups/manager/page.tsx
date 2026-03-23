@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import groupService, { Group, ContactItem } from "@/services/groupService";
+import { useModal } from "@/context/ModalContext";
 
 export default function GroupsManagerPage() {
     const [groups, setGroups] = useState<Group[]>([]);
@@ -26,6 +27,7 @@ export default function GroupsManagerPage() {
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const { showAlert, showConfirm } = useModal();
 
     // Create Group Modal
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -138,34 +140,34 @@ export default function GroupsManagerPage() {
 
     const validateAndSave = async (contactsToSave: ContactItem[], isBatch: boolean) => {
         if (!selectedGroup) {
-            alert("No group selected. Please select a group first.");
+            showAlert("Error", "No group selected. Please select a group first.");
             return;
         }
 
         // CRITICAL: Validate group exists before adding contacts
         if (!groups.find(g => g.group_id === selectedGroup.group_id)) {
-            alert("Group not found. Please refresh the groups list.");
+            showAlert("Error", "Group not found. Please refresh the groups list.");
             return;
         }
 
         // Validation
         const validContacts = contactsToSave.filter(c => c.phone.trim() !== "");
         if (validContacts.length === 0) {
-            alert("Please enter a valid phone number.");
+            showAlert("Validation Error", "Please enter a valid phone number.");
             return;
         }
 
         const phones = validContacts.map(c => c.phone);
         const hasDuplicates = phones.some((p, i) => phones.indexOf(p) !== i);
         if (hasDuplicates) {
-            alert("Duplicate phone numbers found in your list.");
+            showAlert("Validation Error", "Duplicate phone numbers found in your list.");
             return;
         }
 
         const existingPhones = new Set(groupContacts.map(c => c.phone));
         const duplicatesInGroup = validContacts.some(c => existingPhones.has(c.phone));
         if (duplicatesInGroup) {
-            alert("One or more phone numbers already exist in this group.");
+            showAlert("Validation Error", "One or more phone numbers already exist in this group.");
             return;
         }
 
@@ -197,10 +199,10 @@ export default function GroupsManagerPage() {
 
             // Handle specific 404 errors for missing groups
             if (error.response?.status === 404) {
-                alert("Group not found or was deleted. Please refresh the groups list.");
+                showAlert("Error", "Group not found or was deleted. Please refresh the groups list.");
                 fetchGroups(); // Refresh to update state
             } else {
-                alert("Failed to add contacts. Check inputs.");
+                showAlert("Error", "Failed to add contacts. Check inputs.");
             }
         } finally {
             setIsSaving(false);
@@ -216,34 +218,39 @@ export default function GroupsManagerPage() {
     };
 
     const handleDeleteGroup = async (group: Group) => {
-        if (!confirm(`Are you sure you want to delete the group "${group.name}"? This action cannot be undone.`)) {
-            return;
-        }
+        showConfirm(
+            "Delete Group",
+            `Are you sure you want to delete the group "${group.name}"? This action cannot be undone.`,
+            async () => {
+                try {
+                    const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+                    if (token) {
+                        const response = await groupService.deleteGroup(token, group.group_id);
+                        if (response.success) {
+                            setStatus({ type: 'success', text: `Group "${group.name}" deleted successfully!` });
+                            showAlert("Success", "Group deleted successfully.");
 
-        try {
-            const token = localStorage.getItem("token") || localStorage.getItem("access_token");
-            if (token) {
-                const response = await groupService.deleteGroup(token, group.group_id);
-                if (response.success) {
-                    setStatus({ type: 'success', text: `Group "${group.name}" deleted successfully!` });
+                            // CRITICAL: Update state immediately to prevent FK errors
+                            setGroups(prev => prev.filter(g => g.group_id !== group.group_id));
+                            if (selectedGroup?.group_id === group.group_id) {
+                                setSelectedGroup(null);
+                            }
 
-                    // CRITICAL: Update state immediately to prevent FK errors
-                    setGroups(prev => prev.filter(g => g.group_id !== group.group_id));
-                    if (selectedGroup?.group_id === group.group_id) {
-                        setSelectedGroup(null);
+                            // Optional: Refresh to ensure sync
+                            await fetchGroups();
+                        } else {
+                            setStatus({ type: 'error', text: response.message || "Failed to delete group." });
+                            showAlert("Error", response.message || "Failed to delete group.");
+                        }
                     }
-
-                    // Optional: Refresh to ensure sync
-                    fetchGroups();
-                } else {
-                    setStatus({ type: 'error', text: response.message || "Failed to delete group." });
+                } catch (error: any) {
+                    console.error("Delete group error", error);
+                    const errorMessage = error.response?.data?.detail || error.message || "Failed to delete group.";
+                    setStatus({ type: 'error', text: errorMessage });
+                    showAlert("Error", errorMessage);
                 }
             }
-        } catch (error: any) {
-            console.error("Delete group error", error);
-            const errorMessage = error.response?.data?.detail || error.message || "Failed to delete group.";
-            setStatus({ type: 'error', text: errorMessage });
-        }
+        );
     };
 
     return (

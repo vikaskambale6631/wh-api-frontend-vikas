@@ -51,7 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
 
             <main
-                className={`flex-1 p-8 transition-all duration-300 ease-in-out ${isSidebarCollapsed
+                className={`flex-1 p-4 md:p-6 transition-all duration-300 ease-in-out ${isSidebarCollapsed
                     ? (isUserDashboard ? "ml-20" : "ml-16")
                     : "ml-64"
                     }`}

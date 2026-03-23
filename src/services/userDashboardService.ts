@@ -71,9 +71,14 @@ export const userDashboardService = {
         }
     },
 
-    getDeliveryReports: async (token: string) => {
+    getDeliveryReports: async (token: string, startDate?: string, endDate?: string) => {
+        const params: any = {};
+        if (startDate) params.start_date = startDate;
+        if (endDate) params.end_date = endDate;
+
         const response = await axios.get(`${API_URL}/delivery-reports`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            params
         });
         return response.data;
     }

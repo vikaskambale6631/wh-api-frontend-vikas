@@ -32,7 +32,7 @@ export default function DeliveryReportsPage() {
     const [showDateFilter, setShowDateFilter] = useState(false);
     
     // 🔥 NEW: Column visibility and Density
-    const [visibleColumns, setVisibleColumns] = useState<string[]>(["Date Time", "Message", "From", "To", "Attachment", "Status"]);
+    const [visibleColumns, setVisibleColumns] = useState<string[]>(["Date Time", "Message", "From", "To", "Attachment", "Status", "Mode"]);
     const [showColumnToggle, setShowColumnToggle] = useState(false);
     const [density, setDensity] = useState<'standard' | 'compact' | 'comfortable'>('standard');
     const [showDensityToggle, setShowDensityToggle] = useState(false);
@@ -45,12 +45,17 @@ export default function DeliveryReportsPage() {
     const fetchReports = async () => {
         setLoading(true);
         try {
+            setLoading(true);
             const token = localStorage.getItem('token');
             if (!token) {
                 setError("No authentication token found");
                 return;
             }
-            const data = await userDashboardService.getDeliveryReports(token);
+            const data = await userDashboardService.getDeliveryReports(
+                token, 
+                startDate ? `${startDate}T00:00:00Z` : undefined, 
+                endDate ? `${endDate}T23:59:59Z` : undefined
+            );
             setReports(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error("Failed to fetch reports:", err);
@@ -62,35 +67,42 @@ export default function DeliveryReportsPage() {
 
     const handleExport = () => {
         const dataToExport = selectedRows.length > 0 
-            ? reports.filter((_, i) => selectedRows.includes(i))
-            : reports;
+            ? filteredReports.filter((_: any, i: number) => selectedRows.includes(i))
+            : filteredReports;
 
         if (dataToExport.length === 0) return;
         
-        const headers = ["Date Time", "Message", "From", "To", "Status"];
-        const csvContent = [
-            headers.join(","),
-            ...dataToExport.map(r => [
-                `"${formatDate(r.sent_at)}"`,
-                `"${r.message?.replace(/"/g, '""')}"`,
-                `"${r.from}"`,
-                `"${r.to}"`,
-                `"${r.status}"`
-            ].join(","))
-        ].join("\n");
+        // Create CSV headers
+        const headers = ['Date Time', 'Message', 'From', 'To', 'Attachment', 'Status', 'Mode'];
+        
+        // Convert data to CSV format
+        const csvRows = dataToExport.map((row: DeliveryReport) => {
+            return [
+                `"${formatDate(row.sent_at).replace(/,/g, '')}"`,
+                `"${(row.message || '').replace(/"/g, '""')}"`,
+                `"${row.from}"`,
+                `"${row.to}"`,
+                `"${row.attachment_url ? "Yes" : "No"}"`,
+                `"${row.status}"`,
+                `"${row.mode}"`
+            ].join(',');
+        });
 
+        const csvContent = [headers.join(','), ...csvRows].join('\n');
+        
+        // Create Blob and download link
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `delivery_reports_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `delivery_reports_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
-    const filteredReports = reports.filter(r => {
+    const filteredReports = reports.filter((r: DeliveryReport) => {
         const matchesText = 
             !filterText ||
             r.message?.toLowerCase().includes(filterText.toLowerCase()) ||
@@ -118,21 +130,20 @@ export default function DeliveryReportsPage() {
     });
 
     const toggleColumn = (col: string) => {
-        setVisibleColumns(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
+        setVisibleColumns((prev: string[]) => prev.includes(col) ? prev.filter((c: string) => c !== col) : [...prev, col]);
     };
 
     const toggleRow = (index: number) => {
-        setSelectedRows(prev => prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]);
+        setSelectedRows((prev: number[]) => prev.includes(index) ? prev.filter((i: number) => i !== index) : [...prev, index]);
     };
 
     const toggleAllSelected = () => {
         if (selectedRows.length === filteredReports.length) {
             setSelectedRows([]);
         } else {
-            setSelectedRows(filteredReports.map((_, i) => i));
+            setSelectedRows(filteredReports.map((_: any, i: number) => i));
         }
     };
-
     const formatDate = (dateString: string) => {
         if (!dateString) return "-";
         return new Date(dateString).toLocaleString('en-US', {
@@ -193,7 +204,7 @@ export default function DeliveryReportsPage() {
                         {/* Column Toggle Popup */}
                         {showColumnToggle && (
                             <div className="absolute top-12 left-4 z-50 bg-white shadow-xl border border-gray-100 rounded-lg p-3 min-w-[150px] flex flex-col gap-2 normal-case tracking-normal">
-                                {["Date Time", "Message", "From", "To", "Attachment", "Status"].map(col => (
+                                {["Date Time", "Message", "From", "To", "Attachment", "Status", "Mode"].map(col => (
                                     <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                                         <input type="checkbox" checked={visibleColumns.includes(col)} onChange={() => toggleColumn(col)} className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600" />
                                         <span className="text-gray-700">{col}</span>
@@ -292,6 +303,7 @@ export default function DeliveryReportsPage() {
                                     {visibleColumns.includes("To") && <th className="p-4 font-semibold min-w-[150px] border-l border-indigo-100/50">To</th>}
                                     {visibleColumns.includes("Attachment") && <th className="p-4 font-semibold min-w-[250px] border-l border-indigo-100/50">Attachment</th>}
                                     {visibleColumns.includes("Status") && <th className="p-4 font-semibold min-w-[100px] border-l border-indigo-100/50">Status</th>}
+                                    {visibleColumns.includes("Mode") && <th className="p-4 font-semibold min-w-[100px] border-l border-indigo-100/50">Mode</th>}
                                 </tr>
                             </thead>
                             <tbody className="text-xs text-gray-600 divide-y divide-indigo-50">
@@ -328,6 +340,11 @@ export default function DeliveryReportsPage() {
                                                     }`}>
                                                     {row.status}
                                                 </span>
+                                            </td>
+                                        )}
+                                        {visibleColumns.includes("Mode") && (
+                                            <td className={`${getPadding()} font-medium text-gray-500 uppercase`}>
+                                                {row.mode}
                                             </td>
                                         )}
                                     </tr>

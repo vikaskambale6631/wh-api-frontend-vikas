@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { googleSheetService, GoogleSheet, TriggerHistory } from "@/services/googleSheetService";
 import { deviceService, Device } from "@/services/deviceService";
+import { useModal } from "@/context/ModalContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -48,6 +49,8 @@ export default function OfficialTriggerPage() {
     const [history, setHistory] = useState<TriggerHistory[]>([]);
     const [loading, setLoading] = useState(true);
     const [templatesLoading, setTemplatesLoading] = useState(false);
+    const [refreshLoading, setRefreshLoading] = useState(false);
+    const { showAlert } = useModal();
 
     // Form state
     const [selectedSheetId, setSelectedSheetId] = useState("");
@@ -167,24 +170,29 @@ export default function OfficialTriggerPage() {
     };
 
     const fetchHistory = async () => {
+        setRefreshLoading(true);
         try {
             const historyData = await googleSheetService.getAllTriggerHistory();
             setHistory(historyData);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch trigger history", error);
+            const errorMessage = error.response?.data?.detail || error.message || "Failed to refresh history";
+            showAlert("Refresh Error", errorMessage);
+        } finally {
+            setRefreshLoading(false);
         }
     };
 
     const handleSaveTrigger = async () => {
         if (!selectedSheetId || !triggerConfig.device_id || !triggerConfig.template_name) {
-            alert("Please fill all required fields");
+            showAlert("Selection Required", "Please fill all required fields");
             return;
         }
 
         setSaving(true);
         try {
             await googleSheetService.createOfficialTemplateTrigger(selectedSheetId, triggerConfig);
-            alert("✅ Official template trigger created successfully!");
+            showAlert("Success", "✅ Official template trigger created successfully!");
             
             // Reset form
             setTriggerConfig({
@@ -208,7 +216,7 @@ export default function OfficialTriggerPage() {
         } catch (error: any) {
             console.error("Save trigger error:", error);
             const errorMessage = error.response?.data?.detail || error.message || "Failed to create trigger";
-            alert(`❌ ${errorMessage}`);
+            showAlert("Error", `❌ ${errorMessage}`);
         } finally {
             setSaving(false);
         }
@@ -261,9 +269,14 @@ export default function OfficialTriggerPage() {
                         </Badge>
                     </div>
                 </div>
-                <Button onClick={fetchHistory} variant="outline" className="flex items-center gap-2">
-                    <RefreshCcw className="w-4 h-4" />
-                    Refresh History
+                <Button 
+                    onClick={fetchHistory} 
+                    variant="outline" 
+                    disabled={refreshLoading}
+                    className="flex items-center gap-2 transition-all"
+                >
+                    <RefreshCcw className={`w-4 h-4 ${refreshLoading ? 'animate-spin text-blue-600' : ''}`} />
+                    {refreshLoading ? 'Refreshing...' : 'Refresh History'}
                 </Button>
             </div>
 

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import { businessService, BusinessProfile } from '@/services/businessService';
+import { useModal } from '@/context/ModalContext';
 import {
     Table,
     TableBody,
@@ -46,6 +47,7 @@ export default function ResellerUsersPage() {
     const [analytics, setAnalytics] = useState<Analytics | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { showAlert, showConfirm } = useModal();
     const [searchQuery, setSearchQuery] = useState("");
 
     const fetchData = async () => {
@@ -83,16 +85,22 @@ export default function ResellerUsersPage() {
     };
 
     const handleDelete = async (userId: string, name: string) => {
-        if (!confirm(`Are you sure you want to delete user "${name}"?`)) return;
-        try {
-            const token = localStorage.getItem('token') || localStorage.getItem('resellerToken');
-            if (!token) return;
-            await businessService.delete(userId, token);
-            setUsers(users.filter(u => u.busi_user_id !== userId));
-            fetchData(); // Refresh analytics
-        } catch (err) {
-            alert("Deletion blocked by active system dependencies.");
-        }
+        showConfirm(
+            "Delete User",
+            `Are you sure you want to delete user "${name}"?`,
+            async () => {
+                try {
+                    const token = localStorage.getItem('token') || localStorage.getItem('resellerToken');
+                    if (!token) return;
+                    await businessService.delete(userId, token);
+                    setUsers(users.filter(u => u.busi_user_id !== userId));
+                    fetchData(); // Refresh analytics
+                    showAlert("Success", "User deleted successfully.");
+                } catch (err) {
+                    showAlert("Error", "Deletion blocked by active system dependencies.");
+                }
+            }
+        );
     };
 
     const filteredUsers = users.filter(user => 

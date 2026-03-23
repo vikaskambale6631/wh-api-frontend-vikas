@@ -34,9 +34,12 @@ function LoginPageContent() {
         setIsLoading(true)
 
         try {
+            console.log("🚀 Starting login attempt:", { loginType, email: formData.email });
             let data;
             if (loginType === "reseller") {
+                console.log("📡 Calling resellerService.login...");
                 data = await resellerService.login(formData)
+                console.log("✅ Reseller login success:", data);
 
                 // Store token
                 localStorage.setItem("token", data.access_token)
@@ -47,13 +50,13 @@ function LoginPageContent() {
                 localStorage.setItem("reseller_id", data.reseller.reseller_id)
 
                 // Redirect based on role
-                if (data.reseller.role === "reseller" || data.reseller.role === "admin") {
-                    router.push("/dashboard/reseller/analytics")
-                } else {
-                    router.push("/dashboard/reseller/analytics")
-                }
+                console.log("🔀 Redirecting to analytics...");
+                router.push("/dashboard/reseller/analytics")
             } else {
+                console.log("📡 Calling businessService.login...");
                 data = await businessService.login(formData)
+                console.log("✅ Business login success:", data);
+
                 // Store token
                 localStorage.setItem("token", data.access_token)
                 localStorage.setItem("refreshToken", data.refresh_token) // Added Refresh Token
@@ -61,13 +64,15 @@ function LoginPageContent() {
                 localStorage.setItem("user_id", data.busi_user.busi_user_id)
 
                 // Redirect Business User
+                console.log("🔀 Redirecting to dashboard...");
                 router.push("/dashboard/user")
             }
 
         } catch (err: any) {
-            console.error("Login error:", err)
+            console.error("❌ Login error:", err)
             setError(err.response?.data?.detail || "Invalid email or password.")
         } finally {
+            console.log("🏁 Login attempt finished.");
             setIsLoading(false)
         }
     }

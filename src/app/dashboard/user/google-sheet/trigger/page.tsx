@@ -7,6 +7,7 @@ import {
 import { googleSheetService, GoogleSheet, TriggerHistory } from "@/services/googleSheetService";
 import { deviceService, Device } from "@/services/deviceService";
 import { googleSheetUnofficialService } from "@/services/googleSheetUnofficialService";
+import { useModal } from "@/context/ModalContext";
 
 export default function OfficialTriggerPage() {
     const [sheets, setSheets] = useState<GoogleSheet[]>([]);
@@ -18,6 +19,8 @@ export default function OfficialTriggerPage() {
     const [columns, setColumns] = useState<string[]>([]);
     const [triggers, setTriggers] = useState<any[]>([]); // NEW: Store active triggers
     const [actionLoading, setActionLoading] = useState<string | null>(null); // To show loading state for start/stop
+    const [refreshLoading, setRefreshLoading] = useState(false); // NEW: For refresh button feedback
+    const { showAlert, showConfirm } = useModal();
 
     // Unofficial API Requirements
     const [allDevices, setAllDevices] = useState<Device[]>([]); // NEW: Store all user devices for table mapping
@@ -172,33 +175,36 @@ export default function OfficialTriggerPage() {
 
 
     const fetchHistory = async () => {
+        setRefreshLoading(true);
         try {
             const historyData = await googleSheetService.getAllTriggerHistory();
             setHistory(historyData);
         } catch (error: any) {
             console.error("Failed to fetch trigger history", error);
 
-            // Defensive error handling - don't retry on server errors
+            // Defensive error handling
+            let errorMessage = "Failed to refresh history";
             if (!error.response) {
-                console.error("Backend not reachable. Please try again later.");
+                errorMessage = "Backend not reachable. Please try again later.";
             } else if (error.response.status >= 500) {
-                console.error("Server error - not retrying automatically");
-            } else {
-                // Only retry on client errors (4xx) if needed
-                console.error("Client error occurred");
+                errorMessage = "Server error. Please try again later.";
             }
+
+            showAlert("Refresh Error", errorMessage);
+        } finally {
+            setRefreshLoading(false);
         }
     };
 
     const handleSaveTrigger = async () => {
         if (!selectedSheetId || !selectedDeviceId) {
-            alert("Please select a sheet and device");
+            showAlert("Selection Required", "Please select a sheet and device");
             return;
         }
 
         // Text message is optional - check if either text message or message column is provided
         if (!triggerConfig.text_message && !triggerConfig.message_column) {
-            alert("Please provide either a text message or select a message column");
+            showAlert("Message Required", "Please provide either a text message or select a message column");
             return;
         }
 
@@ -224,7 +230,7 @@ export default function OfficialTriggerPage() {
             };
 
             await googleSheetService.setTrigger(selectedSheetId, triggerPayload);
-            alert("✅ Unofficial template trigger created successfully!");
+            showAlert("Success", "✅ Unofficial template trigger created successfully!");
 
             setTriggerConfig({
                 trigger_type: "update_row",
@@ -257,7 +263,7 @@ export default function OfficialTriggerPage() {
                 errorMessage = error.message;
             }
 
-            alert(`❌ ${errorMessage}`);
+            showAlert("Error", `❌ ${errorMessage}`);
         } finally {
             setSaving(false);
         }
@@ -267,11 +273,11 @@ export default function OfficialTriggerPage() {
         setFiring(true);
         try {
             await googleSheetService.fireTriggersNow();
-            alert("✅ Trigger processing cycle started manually!");
+            showAlert("Success", "✅ Trigger processing cycle started manually!");
             fetchHistory();
         } catch (error: any) {
             console.error("Manual fire error:", error);
-            alert(`❌ Failed to fire triggers: ${error.userMessage || error.message}`);
+            showAlert("Error", `❌ Failed to fire triggers: ${error.userMessage || error.message}`);
         } finally {
             setFiring(false);
         }
@@ -281,11 +287,11 @@ export default function OfficialTriggerPage() {
         setActionLoading(triggerId);
         try {
             await googleSheetService.startTrigger(triggerId);
-            alert("✅ Trigger started successfully!");
+            showAlert("Success", "✅ Trigger started successfully!");
             if (selectedSheetId) fetchTriggers(selectedSheetId);
         } catch (error: any) {
             console.error(error);
-            alert("❌ Failed to start trigger");
+            showAlert("Error", "❌ Failed to start trigger");
         } finally {
             setActionLoading(null);
         }
@@ -295,30 +301,34 @@ export default function OfficialTriggerPage() {
         setActionLoading(triggerId);
         try {
             await googleSheetService.stopTrigger(triggerId);
-            alert("✅ Trigger stopped successfully!");
+            showAlert("Success", "✅ Trigger stopped successfully!");
             if (selectedSheetId) fetchTriggers(selectedSheetId);
         } catch (error: any) {
             console.error(error);
-            alert("❌ Failed to stop trigger");
+            showAlert("Error", "❌ Failed to stop trigger");
         } finally {
             setActionLoading(null);
         }
     };
 
     const handleDeleteTrigger = async (triggerId: string) => {
-        if (!window.confirm("Are you sure you want to delete this trigger? This action cannot be undone.")) return;
-        
-        setActionLoading(triggerId);
-        try {
-            await googleSheetService.deleteTrigger(triggerId);
-            alert("✅ Trigger deleted successfully!");
-            if (selectedSheetId) fetchTriggers(selectedSheetId);
-        } catch (error: any) {
-            console.error(error);
-            alert("❌ Failed to delete trigger");
-        } finally {
-            setActionLoading(null);
-        }
+        showConfirm(
+            "Delete Trigger",
+            "Are you sure you want to delete this trigger? This action cannot be undone.",
+            async () => {
+                setActionLoading(triggerId);
+                try {
+                    await googleSheetService.deleteTrigger(triggerId);
+                    showAlert("Success", "✅ Trigger deleted successfully!");
+                    if (selectedSheetId) fetchTriggers(selectedSheetId);
+                } catch (error: any) {
+                    console.error(error);
+                    showAlert("Error", "❌ Failed to delete trigger");
+                } finally {
+                    setActionLoading(null);
+                }
+            }
+        );
     };
 
     const getHistoryStatusColor = (status: string) => {
@@ -348,9 +358,13 @@ export default function OfficialTriggerPage() {
                         </span>
                     </div>
                 </div>
-                <button onClick={fetchHistory} className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-                    <RefreshCcw className="w-4 h-4" />
-                    Refresh History
+                <button 
+                    onClick={fetchHistory} 
+                    disabled={refreshLoading}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-all shadow-sm"
+                >
+                    <RefreshCcw className={`w-4 h-4 ${refreshLoading ? 'animate-spin text-blue-600' : ''}`} />
+                    {refreshLoading ? 'Refreshing...' : 'Refresh History'}
                 </button>
 
             </div>

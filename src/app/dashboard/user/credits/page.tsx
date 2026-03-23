@@ -2,7 +2,7 @@
 
 import DashboardLayout from "@/components/layout/DashboardLayout"
 import { Button } from "@/components/ui/button"
-import { Shield, RefreshCw, Search, Calendar, CreditCard, ArrowLeft, AlertCircle } from "lucide-react"
+import { Shield, RefreshCw, Search, Calendar, CreditCard, ArrowLeft, AlertCircle, Download } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import creditService, { MessageUsageLog } from "@/services/creditService"
@@ -101,9 +101,51 @@ export default function CreditUsagePage() {
         fetchData()
     }, [startDate, endDate]) // Re-fetch when filters change
 
+    const exportToCSV = () => {
+        if (!logs || logs.length === 0) return;
+
+        const headers = ['Date', 'Time', 'Message ID', 'Credits Change', 'Balance After', 'Reference'];
+        const csvRows = [headers.join(',')];
+
+        logs.forEach(log => {
+            const date = new Date(log.timestamp).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                timeZone: 'Asia/Kolkata'
+            });
+            const time = new Date(log.timestamp).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+                timeZone: 'Asia/Kolkata'
+            });
+            const change = log.credits_deducted > 0 ? `-${log.credits_deducted}` : `+${Math.abs(log.credits_deducted)}`;
+            
+            csvRows.push([
+                `"${date}"`,
+                `"${time}"`,
+                `"${log.message_id || ''}"`,
+                `"${change}"`,
+                `"${log.balance_after}"`,
+                `"${log.usage_id}"`
+            ].join(','));
+        });
+
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `credit_usage_${startDate}_to_${endDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <DashboardLayout>
-            <div className="max-w-7xl mx-auto space-y-6">
+            <div className="w-full space-y-6">
                 {/* Header */}
                 <div className="flex items-start justify-between">
                     <div>
@@ -117,6 +159,10 @@ export default function CreditUsagePage() {
                         <Button variant="outline" onClick={() => router.back()} className="gap-2">
                             <ArrowLeft className="h-4 w-4" />
                             Back
+                        </Button>
+                        <Button variant="outline" onClick={exportToCSV} disabled={isLoading || logs.length === 0} className="gap-2 text-green-600 border-green-600 hover:bg-green-50">
+                            <Download className="h-4 w-4" />
+                            Export CSV
                         </Button>
                         <Button className="bg-blue-600 hover:bg-blue-700 gap-2" onClick={fetchData}>
                             <RefreshCw className="h-4 w-4" />
@@ -312,5 +358,5 @@ export default function CreditUsagePage() {
                 )}
             </div>
         </DashboardLayout>
-    )
+    );
 }
