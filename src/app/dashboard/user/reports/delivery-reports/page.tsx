@@ -109,63 +109,43 @@ export default function DeliveryReportsPage() {
             {/* Table Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                 {/* Toolbar */}
-                <div className="flex flex-col border-b border-gray-100 border-t-2 border-red-500/10"> 
-                    <div className="flex items-center gap-4 p-4 text-blue-500 text-xs font-semibold tracking-wide uppercase">
-                        <button className="flex items-center gap-1 hover:text-blue-600 opacity-50 cursor-not-allowed">
-                            <Columns className="w-4 h-4" />
-                            <span>Columns</span>
-                        </button>
-                        <button 
-                            id="filter-btn"
-                            className={`flex items-center gap-1 hover:text-blue-600 px-2 py-1 rounded transition-colors ${showFilter ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'}`}
-                            onClick={() => {
-                                console.log("Filter button clicked, current state:", showFilter);
-                                setShowFilter(!showFilter);
-                            }}
-                        >
-                            <Filter className="w-4 h-4" />
-                            <span>Filters</span>
-                        </button>
-                        <button className="flex items-center gap-1 hover:text-blue-600 opacity-50 cursor-not-allowed">
-                            <ArrowDownUp className="w-4 h-4" />
-                            <span>Density</span>
-                        </button>
+                <div className="flex flex-col border-b border-gray-300"> 
+                    <div className="flex items-center gap-4 p-4 text-blue-600 text-xs font-bold uppercase">
                         <button 
                             id="export-btn"
-                            className="flex items-center gap-1 hover:text-blue-600 px-2 py-1 rounded hover:bg-gray-50 transition-colors"
+                            className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-md transition-all border border-blue-200"
                             onClick={() => {
-                                console.log("Export button clicked, reports count:", reports.length);
+                                alert("Exporting data... Please wait for download window.");
                                 handleExport();
                             }}
                         >
                             <Download className="w-4 h-4" />
-                            <span>Export (CSV)</span>
+                            <span>Export CSV</span>
                         </button>
+
                         <button 
                             id="refresh-btn"
-                            className="ml-auto text-blue-500 hover:text-blue-600 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors" 
+                            className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-md transition-all border border-gray-200" 
                             onClick={() => {
-                                console.log("Refresh button clicked");
+                                alert("Refreshing data from server...");
                                 fetchReports();
                             }}
                         >
                             <Loader2 className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                             Refresh
                         </button>
-                    </div>
-                    
-                    {showFilter && (
-                        <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-200">
-                             <input 
+
+                        <div className="ml-auto w-64 relative">
+                            <Filter className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input 
                                 type="text"
-                                placeholder="Search message, number or status..."
-                                className="w-full p-2 text-sm border border-blue-100 rounded-md bg-blue-50/30 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                                placeholder="Filter reports..."
+                                className="w-full pl-9 pr-4 py-2 border border-blue-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all font-normal normal-case"
                                 value={filterText}
                                 onChange={(e) => setFilterText(e.target.value)}
-                                autoFocus
                              />
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 {/* Table Header */}
