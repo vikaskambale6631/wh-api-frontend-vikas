@@ -217,6 +217,33 @@ export default function GroupsManagerPage() {
         validateAndSave(newContactRows, true);
     };
 
+    const handleDeleteContact = async (phone: string) => {
+        if (!selectedGroup) return;
+        
+        showConfirm(
+            "Remove Contact",
+            `Are you sure you want to remove contact "${phone}" from this group?`,
+            async () => {
+                try {
+                    const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+                    if (token) {
+                        await groupService.deleteContact(token, selectedGroup.group_id, phone);
+                        
+                        // Refresh
+                        const updatedContacts = await groupService.getGroupContacts(token, selectedGroup.group_id);
+                        setGroupContacts(updatedContacts);
+                        fetchGroups(); // Update parent counts
+                        
+                        setStatus({ type: 'success', text: "Contact removed successfully!" });
+                    }
+                } catch (error: any) {
+                    console.error("Delete contact error", error);
+                    showAlert("Error", "Failed to remove contact from group.");
+                }
+            }
+        );
+    };
+
     const handleDeleteGroup = async (group: Group) => {
         showConfirm(
             "Delete Group",
@@ -450,9 +477,18 @@ export default function GroupsManagerPage() {
                                             <td className="p-4 font-medium text-gray-800">{contact.name || "-"}</td>
                                             <td className="p-4 font-mono text-gray-500">{contact.phone}</td>
                                             <td className="p-4 text-right pr-6">
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-600 border border-green-100">
-                                                    VALID
-                                                </span>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-600 border border-green-100">
+                                                        VALID
+                                                    </span>
+                                                    <button
+                                                        onClick={() => handleDeleteContact(contact.phone)}
+                                                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                        title="Remove from Group"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

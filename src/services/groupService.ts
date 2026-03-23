@@ -81,6 +81,13 @@ const groupService = {
             headers: { Authorization: `Bearer ${token}` }
         });
         return response.data;
+    },
+
+    deleteContact: async (token: string, groupId: string, phone: string): Promise<any> => {
+        const response = await axios.delete(`${API_URL}/groups/${groupId}/contacts/${phone}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        return response.data;
     }
 };
 
