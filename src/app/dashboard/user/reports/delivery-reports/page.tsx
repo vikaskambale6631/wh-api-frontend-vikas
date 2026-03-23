@@ -109,15 +109,19 @@ export default function DeliveryReportsPage() {
             {/* Table Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                 {/* Toolbar */}
-                <div className="flex flex-col border-b border-gray-100">
+                <div className="flex flex-col border-b border-gray-100 border-t-2 border-red-500/10"> 
                     <div className="flex items-center gap-4 p-4 text-blue-500 text-xs font-semibold tracking-wide uppercase">
                         <button className="flex items-center gap-1 hover:text-blue-600 opacity-50 cursor-not-allowed">
                             <Columns className="w-4 h-4" />
                             <span>Columns</span>
                         </button>
                         <button 
-                            className={`flex items-center gap-1 hover:text-blue-600 ${showFilter ? 'text-blue-700' : ''}`}
-                            onClick={() => setShowFilter(!showFilter)}
+                            id="filter-btn"
+                            className={`flex items-center gap-1 hover:text-blue-600 px-2 py-1 rounded transition-colors ${showFilter ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'}`}
+                            onClick={() => {
+                                console.log("Filter button clicked, current state:", showFilter);
+                                setShowFilter(!showFilter);
+                            }}
                         >
                             <Filter className="w-4 h-4" />
                             <span>Filters</span>
@@ -127,13 +131,24 @@ export default function DeliveryReportsPage() {
                             <span>Density</span>
                         </button>
                         <button 
-                            className="flex items-center gap-1 hover:text-blue-600"
-                            onClick={handleExport}
+                            id="export-btn"
+                            className="flex items-center gap-1 hover:text-blue-600 px-2 py-1 rounded hover:bg-gray-50 transition-colors"
+                            onClick={() => {
+                                console.log("Export button clicked, reports count:", reports.length);
+                                handleExport();
+                            }}
                         >
                             <Download className="w-4 h-4" />
                             <span>Export (CSV)</span>
                         </button>
-                        <button className="ml-auto text-blue-500 hover:text-blue-600 flex items-center gap-1" onClick={fetchReports}>
+                        <button 
+                            id="refresh-btn"
+                            className="ml-auto text-blue-500 hover:text-blue-600 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors" 
+                            onClick={() => {
+                                console.log("Refresh button clicked");
+                                fetchReports();
+                            }}
+                        >
                             <Loader2 className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                             Refresh
                         </button>
