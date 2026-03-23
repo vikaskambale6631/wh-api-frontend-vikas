@@ -89,17 +89,24 @@ export default function DeliveryReportsPage() {
             r.from?.toLowerCase().includes(filterText.toLowerCase()) ||
             r.status?.toLowerCase().includes(filterText.toLowerCase());
 
-        // Date Range
+        // Date Range (Precise Local Time Comparison)
         let matchesDate = true;
-        if (startDate || endDate) {
-            const reportDate = new Date(r.sent_at).getTime();
+        if ((startDate || endDate) && r.sent_at) {
+            const reportDate = new Date(r.sent_at);
+            // Reset report time to midnight for simple date-only comparison if desired, 
+            // but here we compare against the start of day (00:00) and end of day (23:59)
+            const reportTime = reportDate.getTime();
+            
             if (startDate) {
-                const start = new Date(startDate).setHours(0, 0, 0, 0);
-                if (reportDate < start) matchesDate = false;
+                // Parse YYYY-MM-DD as local date
+                const [y, m, d] = startDate.split('-').map(Number);
+                const start = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+                if (reportTime < start) matchesDate = false;
             }
             if (endDate) {
-                const end = new Date(endDate).setHours(23, 59, 59, 999);
-                if (reportDate > end) matchesDate = false;
+                const [y, m, d] = endDate.split('-').map(Number);
+                const end = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+                if (reportTime > end) matchesDate = false;
             }
         }
 
