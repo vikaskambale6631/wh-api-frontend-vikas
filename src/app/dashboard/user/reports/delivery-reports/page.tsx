@@ -25,6 +25,7 @@ interface DeliveryReport {
 export default function DeliveryReportsPage() {
     const [reports, setReports] = useState<DeliveryReport[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [filterText, setFilterText] = useState("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
