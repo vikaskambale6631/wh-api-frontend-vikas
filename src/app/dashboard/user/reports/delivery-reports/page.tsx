@@ -27,20 +27,23 @@ export default function DeliveryReportsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [filterText, setFilterText] = useState("");
+    const [showFilter, setShowFilter] = useState(false);
+
     useEffect(() => {
         fetchReports();
     }, []);
 
     const fetchReports = async () => {
+        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             if (!token) {
                 setError("No authentication token found");
-                setLoading(false);
                 return;
             }
             const data = await userDashboardService.getDeliveryReports(token);
-            setReports(data);
+            setReports(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error("Failed to fetch reports:", err);
             setError("Failed to load delivery reports");
@@ -48,6 +51,39 @@ export default function DeliveryReportsPage() {
             setLoading(false);
         }
     };
+
+    const handleExport = () => {
+        if (reports.length === 0) return;
+        
+        const headers = ["Date Time", "Message", "From", "To", "Status"];
+        const csvContent = [
+            headers.join(","),
+            ...reports.map(r => [
+                `"${formatDate(r.sent_at)}"`,
+                `"${r.message?.replace(/"/g, '""')}"`,
+                `"${r.from}"`,
+                `"${r.to}"`,
+                `"${r.status}"`
+            ].join(","))
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `delivery_reports_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const filteredReports = reports.filter(r => 
+        r.message?.toLowerCase().includes(filterText.toLowerCase()) ||
+        r.to?.toLowerCase().includes(filterText.toLowerCase()) ||
+        r.from?.toLowerCase().includes(filterText.toLowerCase()) ||
+        r.status?.toLowerCase().includes(filterText.toLowerCase())
+    );
 
     const formatDate = (dateString: string) => {
         if (!dateString) return "-";
@@ -73,26 +109,48 @@ export default function DeliveryReportsPage() {
             {/* Table Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                 {/* Toolbar */}
-                <div className="flex items-center gap-4 p-4 text-blue-500 text-xs font-semibold tracking-wide uppercase">
-                    <button className="flex items-center gap-1 hover:text-blue-600">
-                        <Columns className="w-4 h-4" />
-                        <span>Columns</span>
-                    </button>
-                    <button className="flex items-center gap-1 hover:text-blue-600">
-                        <Filter className="w-4 h-4" />
-                        <span>Filters</span>
-                    </button>
-                    <button className="flex items-center gap-1 hover:text-blue-600">
-                        <ArrowDownUp className="w-4 h-4" />
-                        <span>Density</span>
-                    </button>
-                    <button className="flex items-center gap-1 hover:text-blue-600">
-                        <Download className="w-4 h-4" />
-                        <span>Export</span>
-                    </button>
-                    <button className="ml-auto text-blue-500 hover:text-blue-600" onClick={fetchReports}>
-                        Refresh
-                    </button>
+                <div className="flex flex-col border-b border-gray-100">
+                    <div className="flex items-center gap-4 p-4 text-blue-500 text-xs font-semibold tracking-wide uppercase">
+                        <button className="flex items-center gap-1 hover:text-blue-600 opacity-50 cursor-not-allowed">
+                            <Columns className="w-4 h-4" />
+                            <span>Columns</span>
+                        </button>
+                        <button 
+                            className={`flex items-center gap-1 hover:text-blue-600 ${showFilter ? 'text-blue-700' : ''}`}
+                            onClick={() => setShowFilter(!showFilter)}
+                        >
+                            <Filter className="w-4 h-4" />
+                            <span>Filters</span>
+                        </button>
+                        <button className="flex items-center gap-1 hover:text-blue-600 opacity-50 cursor-not-allowed">
+                            <ArrowDownUp className="w-4 h-4" />
+                            <span>Density</span>
+                        </button>
+                        <button 
+                            className="flex items-center gap-1 hover:text-blue-600"
+                            onClick={handleExport}
+                        >
+                            <Download className="w-4 h-4" />
+                            <span>Export (CSV)</span>
+                        </button>
+                        <button className="ml-auto text-blue-500 hover:text-blue-600 flex items-center gap-1" onClick={fetchReports}>
+                            <Loader2 className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
+                    </div>
+                    
+                    {showFilter && (
+                        <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-200">
+                             <input 
+                                type="text"
+                                placeholder="Search message, number or status..."
+                                className="w-full p-2 text-sm border border-blue-100 rounded-md bg-blue-50/30 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                                value={filterText}
+                                onChange={(e) => setFilterText(e.target.value)}
+                                autoFocus
+                             />
+                        </div>
+                    )}
                 </div>
 
                 {/* Table Header */}
@@ -105,9 +163,9 @@ export default function DeliveryReportsPage() {
                         <div className="flex h-64 items-center justify-center text-red-500">
                             {error}
                         </div>
-                    ) : reports.length === 0 ? (
+                    ) : filteredReports.length === 0 ? (
                         <div className="flex h-64 items-center justify-center text-gray-400 italic">
-                            No delivery reports found
+                            {filterText ? `No matches for "${filterText}"` : "No delivery reports found"}
                         </div>
                     ) : (
                         <table className="w-full text-left border-collapse">
@@ -125,7 +183,7 @@ export default function DeliveryReportsPage() {
                                 </tr>
                             </thead>
                             <tbody className="text-xs text-gray-600 divide-y divide-indigo-50">
-                                {reports.map((row, index) => (
+                                {filteredReports.map((row, index) => (
                                     <tr key={index} className="hover:bg-blue-50/40 transition-colors duration-150">
                                         <td className="p-4">
                                             <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" />
