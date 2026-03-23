@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
     Plus, Search, FileSpreadsheet, ExternalLink, RefreshCw, Send,
-    MessageSquare, CheckCircle, XCircle
+    MessageSquare, CheckCircle, XCircle, Trash2
 } from "lucide-react";
 import { googleSheetService, GoogleSheet } from "@/services/googleSheetService";
 import { deviceService, Device } from "@/services/deviceService";
@@ -64,6 +64,20 @@ export default function GoogleSheetMessagingPage() {
             console.error("Failed to load sheets", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteSheet = async (sheetId: string) => {
+        if (!confirm("Are you sure you want to delete this connected sheet? All associated triggers and history will be removed.")) {
+            return;
+        }
+
+        try {
+            await googleSheetService.deleteSheet(sheetId);
+            // Refresh list
+            loadSheets();
+        } catch (error: any) {
+            alert(error.userMessage || "Failed to delete sheet");
         }
     };
 
@@ -261,13 +275,22 @@ export default function GoogleSheetMessagingPage() {
                                         </span>
                                     </td>
                                     <td className="p-4 text-center">
-                                        <button
-                                            onClick={() => openSendModal(sheet)}
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 mx-auto"
-                                        >
-                                            <Send className="w-3 h-3" />
-                                            Send
-                                        </button>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => openSendModal(sheet)}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                                            >
+                                                <Send className="w-3 h-3" />
+                                                Send
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteSheet(sheet.id)}
+                                                className="bg-red-50 text-red-600 hover:bg-red-100 p-1.5 rounded-md transition-colors"
+                                                title="Delete Connection"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
