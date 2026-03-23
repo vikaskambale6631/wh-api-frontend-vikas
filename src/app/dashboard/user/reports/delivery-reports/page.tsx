@@ -28,7 +28,9 @@ export default function DeliveryReportsPage() {
     const [error, setError] = useState<string | null>(null);
 
     const [filterText, setFilterText] = useState("");
-    const [showFilter, setShowFilter] = useState(false);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [showDateFilter, setShowDateFilter] = useState(false);
 
     useEffect(() => {
         fetchReports();
@@ -78,12 +80,31 @@ export default function DeliveryReportsPage() {
         document.body.removeChild(link);
     };
 
-    const filteredReports = reports.filter(r => 
-        r.message?.toLowerCase().includes(filterText.toLowerCase()) ||
-        r.to?.toLowerCase().includes(filterText.toLowerCase()) ||
-        r.from?.toLowerCase().includes(filterText.toLowerCase()) ||
-        r.status?.toLowerCase().includes(filterText.toLowerCase())
-    );
+    const filteredReports = reports.filter(r => {
+        // Text Search
+        const matchesText = 
+            !filterText ||
+            r.message?.toLowerCase().includes(filterText.toLowerCase()) ||
+            r.to?.toLowerCase().includes(filterText.toLowerCase()) ||
+            r.from?.toLowerCase().includes(filterText.toLowerCase()) ||
+            r.status?.toLowerCase().includes(filterText.toLowerCase());
+
+        // Date Range
+        let matchesDate = true;
+        if (startDate || endDate) {
+            const reportDate = new Date(r.sent_at).getTime();
+            if (startDate) {
+                const start = new Date(startDate).setHours(0, 0, 0, 0);
+                if (reportDate < start) matchesDate = false;
+            }
+            if (endDate) {
+                const end = new Date(endDate).setHours(23, 59, 59, 999);
+                if (reportDate > end) matchesDate = false;
+            }
+        }
+
+        return matchesText && matchesDate;
+    });
 
     const formatDate = (dateString: string) => {
         if (!dateString) return "-";
@@ -109,43 +130,84 @@ export default function DeliveryReportsPage() {
             {/* Table Section */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                 {/* Toolbar */}
-                <div className="flex flex-col border-b border-gray-300"> 
-                    <div className="flex items-center gap-4 p-4 text-blue-600 text-xs font-bold uppercase">
+                <div className="flex flex-col border-b border-gray-100"> 
+                    <div className="flex items-center gap-4 p-4 text-blue-500 text-xs font-semibold tracking-wide uppercase">
+                        <button className="flex items-center gap-1 hover:text-blue-600 opacity-50 cursor-not-allowed">
+                            <Columns className="w-4 h-4" />
+                            <span>Columns</span>
+                        </button>
+                        
                         <button 
-                            id="export-btn"
-                            className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-md transition-all border border-blue-200"
-                            onClick={() => {
-                                alert("Exporting data... Please wait for download window.");
-                                handleExport();
-                            }}
+                            className={`flex items-center gap-1 hover:text-blue-600 ${showDateFilter ? 'text-blue-700' : ''}`}
+                            onClick={() => setShowDateFilter(!showDateFilter)}
                         >
-                            <Download className="w-4 h-4" />
-                            <span>Export CSV</span>
+                            <Filter className="w-4 h-4" />
+                            <span>Filters</span>
+                        </button>
+
+                        <button className="flex items-center gap-1 hover:text-blue-600 opacity-50 cursor-not-allowed">
+                            <ArrowDownUp className="w-4 h-4" />
+                            <span>Density</span>
                         </button>
 
                         <button 
-                            id="refresh-btn"
-                            className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-md transition-all border border-gray-200" 
-                            onClick={() => {
-                                alert("Refreshing data from server...");
-                                fetchReports();
-                            }}
+                            className="flex items-center gap-1 hover:text-blue-600"
+                            onClick={handleExport}
                         >
+                            <Download className="w-4 h-4" />
+                            <span>Export (CSV)</span>
+                        </button>
+
+                        <button className="ml-auto text-blue-500 hover:text-blue-600 flex items-center gap-1" onClick={fetchReports}>
                             <Loader2 className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                             Refresh
                         </button>
-
-                        <div className="ml-auto w-64 relative">
-                            <Filter className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input 
-                                type="text"
-                                placeholder="Filter reports..."
-                                className="w-full pl-9 pr-4 py-2 border border-blue-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all font-normal normal-case"
-                                value={filterText}
-                                onChange={(e) => setFilterText(e.target.value)}
-                             />
-                        </div>
                     </div>
+
+                    {showDateFilter && (
+                        <div className="px-5 pb-5 flex flex-wrap items-end gap-5 bg-blue-50/20 border-t border-blue-50">
+                            <div className="flex flex-col gap-1.5 min-w-[180px]">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">START DATE</label>
+                                <input 
+                                    type="date"
+                                    className="p-2 border border-blue-100 rounded-md bg-white text-xs focus:ring-2 focus:ring-blue-100 outline-none"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5 min-w-[180px]">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">END DATE</label>
+                                <input 
+                                    type="date"
+                                    className="p-2 border border-blue-100 rounded-md bg-white text-xs focus:ring-2 focus:ring-blue-100 outline-none"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5 flex-1 min-w-[250px]">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">SEARCH TEXT</label>
+                                <input 
+                                    type="text"
+                                    placeholder="Search message, number or status..."
+                                    className="p-2 border border-blue-100 rounded-md bg-white text-xs focus:ring-2 focus:ring-blue-100 outline-none"
+                                    value={filterText}
+                                    onChange={(e) => setFilterText(e.target.value)}
+                                />
+                            </div>
+                            {(startDate || endDate || filterText) && (
+                                <button 
+                                    className="p-2 text-[10px] font-bold text-red-400 hover:text-red-600 transition-colors uppercase self-end mb-1"
+                                    onClick={() => {
+                                        setStartDate("");
+                                        setEndDate("");
+                                        setFilterText("");
+                                    }}
+                                >
+                                    Clear All
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Table Header */}
