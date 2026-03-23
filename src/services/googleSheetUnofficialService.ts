@@ -17,7 +17,7 @@ const getAuthHeaders = () => {
 
 // Create a configured instance
 const api = axios.create({
-    baseURL: API_URL,
+    baseURL: API_URL.endsWith('/') ? API_URL : `${API_URL}/`,
     timeout: 120000,
 });
 
@@ -66,7 +66,7 @@ export const googleSheetUnofficialService = {
                 name: deviceName,
                 messages: messages
             };
-            const response = await api.post('/unofficial/bulk-send-messages', payload, {
+            const response = await api.post('unofficial/bulk-send-messages', payload, {
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -90,7 +90,7 @@ export const googleSheetUnofficialService = {
                 formData.append('recipients', num);
             });
 
-            const response = await api.post('/unofficial/bulk-send-files', formData);
+            const response = await api.post('unofficial/bulk-send-files', formData);
             return response.data;
         } catch (error: any) {
             console.error("Bulk Send Files Failed", error);
@@ -111,7 +111,7 @@ export const googleSheetUnofficialService = {
                 formData.append('recipients', num);
             });
 
-            const response = await api.post('/unofficial/bulk-send-files-with-text', formData);
+            const response = await api.post('unofficial/bulk-send-files-with-text', formData);
             return response.data;
         } catch (error: any) {
             console.error("Bulk Send Files with Text Failed", error);
