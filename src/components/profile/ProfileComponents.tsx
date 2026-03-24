@@ -2,10 +2,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { ShieldCheck, History, User, Building2, Layout, Lock, Save, X, Loader2 } from "lucide-react"
+import { ShieldCheck, History, User, Building2, Layout, Lock, Save, X, Loader2, Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import resellerService from "@/services/resellerService"
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogFooter,
+    DialogDescription 
+} from "@/components/ui/dialog"
+import { useModal } from "@/context/ModalContext"
 import { cn } from "@/lib/utils"
 
 interface ProfileProps {
@@ -40,7 +49,7 @@ export function ProfileHeader({ data }: { data: any }) {
                     <h1 className="text-xl font-black text-gray-900 capitalize tracking-tight">{name}</h1>
                     <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] font-bold text-green-600 uppercase bg-green-50 px-1.5 py-0.5 rounded tracking-widest">{data.status || 'active'}</span>
-                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{data.role === 'business_owner' ? 'reseller' : data.role}</span>
+                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{data.role === 'business_owner' ? 'Business User' : data.role}</span>
                     </div>
                 </div>
             </div>
@@ -346,7 +355,7 @@ export function AccountDetailsSection({ data }: { data: any }) {
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
                 <InfoItem label="PLAN TYPE" value="MAP 8A" />
-                <InfoItem label="USER TYPE" value={data?.role || "reseller"} />
+                <InfoItem label="USER TYPE" value={data?.role === 'business_owner' ? 'Business User' : (data?.role || "Business User")} />
                 <InfoItem label="EXPIRY DATE" value="UNLIMITED" isDynamic />
                 <InfoItem label="USERNAME" value={data?.profile?.username || "N/A"} />
                 <InfoItem label="CURRENT PASSWORD" value="••••••••••••" />
@@ -356,22 +365,169 @@ export function AccountDetailsSection({ data }: { data: any }) {
 }
 
 export function SecuritySettingsSection() {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [passwords, setPasswords] = useState({
+        current: "",
+        new: "",
+        confirm: ""
+    });
+    const [showCurrent, setShowCurrent] = useState(false);
+    const [showNew, setShowNew] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    
+    const { showAlert } = useModal();
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (passwords.new !== passwords.confirm) {
+            showAlert("Error", "New passwords do not match.");
+            return;
+        }
+
+        if (passwords.new.length < 8) {
+            showAlert("Error", "New password must be at least 8 characters long.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const token = localStorage.getItem("token") || localStorage.getItem("resellerToken");
+            if (!token) throw new Error("No token found");
+
+            await resellerService.changePassword(token, {
+                current_password: passwords.current,
+                new_password: passwords.new
+            });
+
+            showAlert("Success", "Password updated successfully.");
+            setIsModalOpen(false);
+            setPasswords({ current: "", new: "", confirm: "" });
+        } catch (err: any) {
+            console.error("Password change failed:", err);
+            const errorMessage = err.response?.data?.detail || "Failed to update password. Please check your current password.";
+            showAlert("Error", errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
-        <Card className="border-none shadow-md bg-white">
-            <CardHeader className="pb-4 border-b border-gray-50">
-                <div className="flex items-center gap-2 text-blue-600">
-                    <Lock className="h-5 w-5" />
-                    <CardTitle className="text-base font-bold text-gray-800">Security Settings</CardTitle>
-                </div>
-            </CardHeader>
-            <CardContent className="pt-12 flex flex-col items-center justify-center text-center space-y-4 min-h-[300px]">
-                <div className="p-4 bg-gray-50 rounded-full border border-gray-100">
-                    <ShieldCheck className="h-8 w-8 text-gray-300" />
-                </div>
-                <p className="text-xs text-gray-400 font-medium max-w-[200px]">Keep your account secure by updating your password regularly.</p>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 shadow-md">Change Password</Button>
-            </CardContent>
-        </Card>
+        <>
+            <Card className="border-none shadow-md bg-white">
+                <CardHeader className="pb-4 border-b border-gray-50">
+                    <div className="flex items-center gap-2 text-blue-600">
+                        <Lock className="h-5 w-5" />
+                        <CardTitle className="text-base font-bold text-gray-800">Security Settings</CardTitle>
+                    </div>
+                </CardHeader>
+                <CardContent className="pt-12 flex flex-col items-center justify-center text-center space-y-4 min-h-[300px]">
+                    <div className="p-4 bg-gray-50 rounded-full border border-gray-100">
+                        <ShieldCheck className="h-8 w-8 text-gray-300" />
+                    </div>
+                    <p className="text-xs text-gray-400 font-medium max-w-[200px]">Keep your account secure by updating your password regularly.</p>
+                    <Button 
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 shadow-md"
+                        onClick={() => setIsModalOpen(true)}
+                    >
+                        Change Password
+                    </Button>
+                </CardContent>
+            </Card>
+
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-gray-900 tracking-tight">Change Password</DialogTitle>
+                        <DialogDescription className="text-xs font-medium text-gray-500">
+                            Enter your current password and choose a new one.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleChangePassword} className="space-y-4 py-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">CURRENT PASSWORD</label>
+                            <div className="relative">
+                                <Input 
+                                    type={showCurrent ? "text" : "password"}
+                                    required
+                                    value={passwords.current}
+                                    onChange={(e) => setPasswords({...passwords, current: e.target.value})}
+                                    className="h-10 font-bold text-sm pr-10"
+                                    placeholder="••••••••••••"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCurrent(!showCurrent)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">NEW PASSWORD</label>
+                            <div className="relative">
+                                <Input 
+                                    type={showNew ? "text" : "password"}
+                                    required
+                                    value={passwords.new}
+                                    onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                                    className="h-10 font-bold text-sm pr-10"
+                                    placeholder="••••••••••••"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNew(!showNew)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">CONFIRM NEW PASSWORD</label>
+                            <div className="relative">
+                                <Input 
+                                    type={showConfirm ? "text" : "password"}
+                                    required
+                                    value={passwords.confirm}
+                                    onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                                    className="h-10 font-bold text-sm pr-10"
+                                    placeholder="••••••••••••"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirm(!showConfirm)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+                        <DialogFooter className="pt-4">
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => setIsModalOpen(false)}
+                                className="font-bold"
+                                disabled={loading}
+                            >
+                                Cancel
+                            </Button>
+                            <Button 
+                                type="submit" 
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md"
+                                disabled={loading}
+                            >
+                                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Update Password
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 }
 

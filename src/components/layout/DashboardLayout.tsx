@@ -43,7 +43,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, [pathname, router])
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-gray-50 flex overflow-x-hidden">
             {isUserDashboard ? (
                 <UserSidebar collapsed={isSidebarCollapsed} toggleSidebar={toggleSidebar} />
             ) : (
@@ -51,7 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
 
             <main
-                className={`flex-1 p-4 md:p-6 transition-all duration-300 ease-in-out ${isSidebarCollapsed
+                className={`flex-1 p-4 md:p-6 transition-all duration-300 ease-in-out overflow-x-hidden ${isSidebarCollapsed
                     ? (isUserDashboard ? "ml-20" : "ml-16")
                     : "ml-64"
                     }`}

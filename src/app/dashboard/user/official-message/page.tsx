@@ -279,33 +279,40 @@ export default function OfficialMessagePage() {
                 </div>
 
                 {/* Progress Stepper */}
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex justify-between items-center px-8 md:px-16 relative overflow-hidden">
-                    <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 z-0"></div>
-                    {[1, 2, 3, 4].map((step) => (
-                        <div key={step} className="relative z-10 flex flex-col items-center gap-2">
-                            <motion.div
-                                initial={false}
-                                animate={{
-                                    backgroundColor: step <= currentStep ? "#059669" : "#f3f4f6", // Emerald-600
-                                    color: step <= currentStep ? "#ffffff" : "#6b7280",
-                                    scale: step === currentStep ? 1.1 : 1
-                                }}
-                                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300 border-2 border-white"
-                            >
-                                {step < currentStep ? <Check size={18} /> : step}
-                            </motion.div>
-                            <span className={`text-xs font-medium ${step <= currentStep ? 'text-emerald-700' : 'text-gray-400'}`}>
-                                {step === 1 ? "Type" : step === 2 ? "Audience" : step === 3 ? "Compose" : "Review"}
-                            </span>
-                        </div>
-                    ))}
-                    <motion.div
-                        className="absolute top-1/2 left-0 h-1 bg-emerald-500 z-0 origin-left"
-                        initial={{ scaleX: 0 }}
-                        animate={{ scaleX: (currentStep - 1) / 3 }}
-                        transition={{ duration: 0.5, ease: "easeInOut" }}
-                        style={{ width: "100%" }}
-                    />
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative">
+                    {/* Background Progress Line */}
+                    <div className="absolute top-[36px] left-[52px] right-[52px] md:left-[84px] md:right-[84px] h-0.5 bg-gray-100 z-0" />
+                    
+                    {/* Active Progress Line */}
+                    <div className="absolute top-[36px] left-[52px] right-[52px] md:left-[84px] md:right-[84px] h-0.5 z-0 overflow-hidden">
+                        <motion.div
+                            className="bg-emerald-500 h-full origin-left"
+                            initial={{ scaleX: 0 }}
+                            animate={{ scaleX: (currentStep - 1) / 3 }}
+                            transition={{ duration: 0.5, ease: "easeInOut" }}
+                        />
+                    </div>
+
+                    <div className="flex justify-between items-center px-8 md:px-16 relative z-10">
+                        {[1, 2, 3, 4].map((step) => (
+                            <div key={step} className="flex flex-col items-center gap-2">
+                                <motion.div
+                                    initial={false}
+                                    animate={{
+                                        backgroundColor: step <= currentStep ? "#059669" : "#f3f4f6", // Emerald-600
+                                        color: step <= currentStep ? "#ffffff" : "#6b7280",
+                                        scale: step === currentStep ? 1.1 : 1
+                                    }}
+                                    className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300 border-2 border-white"
+                                >
+                                    {step < currentStep ? <Check size={18} /> : step}
+                                </motion.div>
+                                <span className={`text-xs font-medium ${step <= currentStep ? 'text-emerald-700' : 'text-gray-400'}`}>
+                                    {step === 1 ? "Type" : step === 2 ? "Audience" : step === 3 ? "Compose" : "Review"}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Content Card */}

@@ -17,7 +17,9 @@ import {
     LogOut,
     CreditCard,
     ShieldCheck,
-    Code
+    Code,
+    PanelLeftClose,
+    PanelLeftOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -96,8 +98,7 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
             hasSubmenu: true,
             color: "text-yellow-500",
             submenu: [
-                { label: "Manage Groups", href: "/dashboard/user/groups/manager" },
-                { label: "Broadcast", href: "/dashboard/user/groups/broadcast" }
+                { label: "Manage Groups", href: "/dashboard/user/groups/manager" }
             ]
         },
         { label: "MANAGE REPLIES", icon: MessageCircleReply, href: "/dashboard/user/manage-replies", color: "text-indigo-500" },
@@ -138,20 +139,23 @@ export function UserSidebar({ collapsed, toggleSidebar }: SidebarProps) {
                         <h1 className="text-xl font-bold whitespace-nowrap overflow-hidden">Message API</h1>
                     )}
                     {!collapsed && (
-                        <button onClick={toggleSidebar} className="ml-auto text-gray-400 hover:text-white p-1">
-                            <X className="h-5 w-5" />
+                        <button onClick={toggleSidebar} className="ml-auto text-gray-400 hover:text-white p-1.5 hover:bg-slate-800 rounded-md transition-colors" title="Collapse Sidebar">
+                            <PanelLeftClose className="h-5 w-5" />
                         </button>
                     )}
                 </div>
 
-                {/* Chevron Toggle when collapsed */}
+                {/* Collapse Toggle when collapsed */}
                 {collapsed && (
-                    <button
-                        onClick={toggleSidebar}
-                        className="absolute left-[50%] -translate-x-[50%] top-20 text-gray-400 hover:text-white p-1"
-                    >
-                        <ChevronDown className="w-5 h-5 -rotate-90" />
-                    </button>
+                    <div className="flex justify-center mb-6">
+                        <button
+                            onClick={toggleSidebar}
+                            className="text-gray-400 hover:text-white p-2 hover:bg-slate-800 rounded-md transition-colors"
+                            title="Expand Sidebar"
+                        >
+                            <PanelLeftOpen className="w-5 h-5" />
+                        </button>
+                    </div>
                 )}
 
 

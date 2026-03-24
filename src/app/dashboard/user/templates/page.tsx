@@ -36,18 +36,39 @@ export default function TemplatesPage() {
         content: ""
     });
 
+    // Date Filter states
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [isFilterVisible, setIsFilterVisible] = useState(false);
+
     useEffect(() => {
         syncAndFetchTemplates();
     }, []);
 
     useEffect(() => {
-        const filtered = templates.filter(template =>
-            template.template_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            template.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            template.language?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        const filtered = templates.filter(template => {
+            const matchesSearch = template.template_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                template.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                template.language?.toLowerCase().includes(searchTerm.toLowerCase());
+
+            const updatedDate = template.updated_at ? new Date(template.updated_at) : null;
+            let matchesDate = true;
+
+            if (startDate) {
+                const sDate = new Date(startDate);
+                sDate.setHours(0, 0, 0, 0);
+                if (updatedDate && updatedDate < sDate) matchesDate = false;
+            }
+            if (endDate) {
+                const eDate = new Date(endDate);
+                eDate.setHours(23, 59, 59, 999);
+                if (updatedDate && updatedDate > eDate) matchesDate = false;
+            }
+
+            return matchesSearch && matchesDate;
+        });
         setFilteredTemplates(filtered);
-    }, [templates, searchTerm]);
+    }, [templates, searchTerm, startDate, endDate]);
 
     const getToken = () => {
         return localStorage.getItem("token") || localStorage.getItem("access_token");
@@ -181,6 +202,44 @@ export default function TemplatesPage() {
         }
     };
 
+    const handleExportCSV = () => {
+        if (filteredTemplates.length === 0) {
+            setStatus({ type: 'error', text: "No templates to export." });
+            return;
+        }
+
+        const headers = ["ID", "Template Name", "Category", "Language", "Status", "Last Updated"];
+        const rows = filteredTemplates.map(t => [
+            t.meta_template_id || t.id,
+            t.template_name,
+            t.category,
+            t.language,
+            t.template_status,
+            t.updated_at ? new Date(t.updated_at).toLocaleDateString() : ""
+        ]);
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+        ].join("\n");
+
+        try {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `templates_export_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setStatus({ type: 'success', text: "Exported successfully!" });
+        } catch (err) {
+            console.error("Export failed", err);
+            setStatus({ type: 'error', text: "Failed to export CSV." });
+        }
+    };
+
     const getStatusBadge = (templateStatus: string) => {
         const s = (templateStatus || "").toUpperCase();
         const styles: Record<string, string> = {
@@ -288,16 +347,52 @@ export default function TemplatesPage() {
                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                             <span>Refresh</span>
                         </button>
-                        <button className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-gray-50 rounded-lg transition-colors border border-transparent hover:border-gray-200">
+                        <button 
+                            onClick={() => setIsFilterVisible(!isFilterVisible)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors border ${isFilterVisible ? 'bg-blue-50 border-blue-200 text-blue-600' : 'hover:bg-gray-50 border-transparent hover:border-gray-200'}`}
+                        >
                             <Filter className="w-4 h-4" />
                             <span>Filter</span>
                         </button>
-                        <button className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-gray-50 rounded-lg transition-colors border border-transparent hover:border-gray-200">
+                        <button 
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-gray-50 rounded-lg transition-colors border border-transparent hover:border-gray-200"
+                        >
                             <Download className="w-4 h-4" />
                             <span>Export</span>
                         </button>
                     </div>
                 </div>
+
+                {/* Filter Panel */}
+                {isFilterVisible && (
+                    <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-wrap items-end gap-4 animate-in slide-in-from-top-2 duration-200">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Start Date</label>
+                            <input 
+                                type="date" 
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="block w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:outline-none bg-white"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">End Date</label>
+                            <input 
+                                type="date" 
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="block w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:outline-none bg-white"
+                            />
+                        </div>
+                        <button 
+                            onClick={() => { setStartDate(""); setEndDate(""); }}
+                            className="text-xs text-gray-500 hover:text-blue-600 font-medium pb-2.5 transition-colors"
+                        >
+                            Clear Dates
+                        </button>
+                    </div>
+                )}
 
                 {/* Loading State */}
                 {loading && (

@@ -71,7 +71,7 @@ export default function UserDashboard() {
             </h1>
             <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400 text-sm">
               <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 px-3 py-1 rounded-full text-xs font-medium border border-purple-200 dark:border-purple-800 uppercase tracking-wide">
-                {data?.role === 'business_owner' ? 'User' : data?.role}
+                {data?.role === 'business_owner' ? 'Business User' : data?.role}
               </span>
               <span className="flex items-center gap-1"><User className="w-3 h-3" /> {data?.profile.name}</span>
               <span className="hidden md:inline text-gray-300">|</span>

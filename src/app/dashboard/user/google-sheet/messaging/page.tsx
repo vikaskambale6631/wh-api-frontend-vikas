@@ -9,6 +9,7 @@ import { googleSheetService, GoogleSheet } from "@/services/googleSheetService";
 import { deviceService, Device } from "@/services/deviceService";
 import { googleSheetUnofficialService } from "@/services/googleSheetUnofficialService";
 import ConnectSheetModal from "@/components/ConnectSheetModal";
+import { useModal } from "@/context/ModalContext";
 
 export default function GoogleSheetMessagingPage() {
     const [sheets, setSheets] = useState<GoogleSheet[]>([]);
@@ -35,6 +36,8 @@ export default function GoogleSheetMessagingPage() {
     const [sending, setSending] = useState(false);
     const [showSendModal, setShowSendModal] = useState(false);
     const [showConnectModal, setShowConnectModal] = useState(false);
+
+    const { showConfirm, showAlert } = useModal();
 
     useEffect(() => {
         loadSheets();
@@ -68,17 +71,19 @@ export default function GoogleSheetMessagingPage() {
     };
 
     const handleDeleteSheet = async (sheetId: string) => {
-        if (!confirm("Are you sure you want to delete this connected sheet? All associated triggers and history will be removed.")) {
-            return;
-        }
-
-        try {
-            await googleSheetService.deleteSheet(sheetId);
-            // Refresh list
-            loadSheets();
-        } catch (error: any) {
-            alert(error.userMessage || "Failed to delete sheet");
-        }
+        showConfirm(
+            "Delete Connection",
+            "Are you sure you want to delete this connected sheet? All associated triggers and history will be removed.",
+            async () => {
+                try {
+                    await googleSheetService.deleteSheet(sheetId);
+                    loadSheets();
+                    showAlert("Success", "Sheet connection deleted successfully.");
+                } catch (error: any) {
+                    showAlert("Error", error.userMessage || "Failed to delete sheet");
+                }
+            }
+        );
     };
 
     const openSendModal = async (sheet: GoogleSheet) => {
@@ -126,7 +131,7 @@ export default function GoogleSheetMessagingPage() {
                 if (phone) setSendConfig(prev => ({ ...prev, phone_column: phone }));
             }
         } catch (error: any) {
-            alert(error.response?.data?.detail || "Failed to fetch rows");
+            showAlert("Error", error.response?.data?.detail || "Failed to fetch rows");
         } finally {
             setSyncing(false);
         }
@@ -134,12 +139,12 @@ export default function GoogleSheetMessagingPage() {
 
     const handleSendMessage = async () => {
         if (!selectedSheet || !sendConfig.phone_column) {
-            alert("Please fill all required fields and fetch rows");
+            showAlert("Action Required", "Please fill all required fields and fetch rows");
             return;
         }
 
         if (!selectedDeviceId) {
-            alert("Please select a device");
+            showAlert("Action Required", "Please select a device");
             return;
         }
 
@@ -147,7 +152,7 @@ export default function GoogleSheetMessagingPage() {
         if (!device) return;
 
         if (!sendConfig.text_message && !selectedFile) {
-            alert("Please enter a text message or select a file");
+            showAlert("Action Required", "Please enter a text message or select a file");
             return;
         }
 
@@ -163,7 +168,7 @@ export default function GoogleSheetMessagingPage() {
                 .filter(phone => phone && phone.trim() !== "");
 
             if (numbers.length === 0) {
-                alert("No valid phone numbers found in the selected rows.");
+                showAlert("No Data", "No valid phone numbers found in the selected rows.");
                 setSending(false);
                 return;
             }
@@ -188,10 +193,10 @@ export default function GoogleSheetMessagingPage() {
                 sendConfig.text_message // The unofficial API bulk backend might not support variable replacement for file+text directly, so we pass raw
             );
 
-            alert(`✅ Messages sent successfully!`);
+            showAlert("Success", "Messages sent successfully!");
             setShowSendModal(false);
         } catch (error: any) {
-            alert(`❌ ${error.message || "Failed to send messages"}`);
+            showAlert("Error", error.message || "Failed to send messages");
         } finally {
             setSending(false);
         }

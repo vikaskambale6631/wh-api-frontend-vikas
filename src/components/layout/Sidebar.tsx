@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutGrid, User, Code, ShoppingCart, CreditCard, Users, History, LogOut, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { LayoutGrid, User, Code, ShoppingCart, CreditCard, Users, History, LogOut, ChevronLeft, ChevronRight, X, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
@@ -74,19 +74,22 @@ export function Sidebar({ collapsed, toggleSidebar }: SidebarProps) {
                 )}
 
                 {!collapsed && (
-                    <button onClick={toggleSidebar} className="p-1 hover:bg-gray-100 rounded-full text-gray-500">
-                        <X className="h-5 w-5" />
+                    <button onClick={toggleSidebar} className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors" title="Collapse Sidebar">
+                        <PanelLeftClose className="h-5 w-5" />
                     </button>
                 )}
             </div>
 
             {collapsed && (
-                <button
-                    onClick={toggleSidebar}
-                    className="absolute -right-3 top-20 bg-white border shadow-sm rounded-full p-1 text-gray-500 hover:text-gray-900"
-                >
-                    <ChevronRight className="h-3 w-3" />
-                </button>
+                <div className="flex justify-center p-4 border-b">
+                    <button
+                        onClick={toggleSidebar}
+                        className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
+                        title="Expand Sidebar"
+                    >
+                        <PanelLeftOpen className="h-5 w-5" />
+                    </button>
+                </div>
             )}
 
 
