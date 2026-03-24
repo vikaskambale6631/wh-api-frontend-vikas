@@ -53,6 +53,26 @@ function OfficialWhatsAppPageContent() {
         router.push(`/dashboard/user/official-whatsapp?tab=${tab}`);
     };
 
+    const formatError = (error: any) => {
+        const rawMsg = error?.response?.data?.detail || error?.response?.data?.error_message || error?.message || "Unknown error";
+        
+        // Check if rawMsg is a JSON string (sometimes backend returns Meta's raw error)
+        try {
+            const parsed = JSON.parse(rawMsg);
+            if (parsed.error && parsed.error.message) {
+                const metaErr = parsed.error;
+                if (metaErr.code === 190 || metaErr.error_subcode === 463 || metaErr.error_subcode === 467) {
+                    return "Your Meta Access Token has expired. Please generate a new one and update it here.";
+                }
+                return metaErr.message;
+            }
+        } catch {
+            // Not JSON, continue
+        }
+
+        return rawMsg;
+    };
+
     const fetchConfig = async () => {
         const token = localStorage.getItem("token");
         if (!token) return;
@@ -109,7 +129,7 @@ function OfficialWhatsAppPageContent() {
             await fetchConfig();
         } catch (error: any) {
             console.error("Save config error:", error);
-            const errorMsg = error.response?.data?.detail || "Failed to save configuration.";
+            const errorMsg = formatError(error);
             setMessage({ type: "error", text: errorMsg });
         } finally {
             setLoading(false);
@@ -126,7 +146,7 @@ function OfficialWhatsAppPageContent() {
             await handleFetchTemplates();
             setMessage({ type: "success", text: "Templates synced successfully!" });
         } catch (error) {
-            setMessage({ type: "error", text: "Failed to sync templates." });
+            setMessage({ type: "error", text: formatError(error) });
         } finally {
             setLoading(false);
         }

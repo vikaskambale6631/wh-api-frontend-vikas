@@ -53,6 +53,26 @@ export default function TemplatesPage() {
         return localStorage.getItem("token") || localStorage.getItem("access_token");
     };
 
+    const formatError = (error: any) => {
+        const rawMsg = error?.response?.data?.detail || error?.response?.data?.error_message || error?.message || "Unknown error";
+        
+        // Check if rawMsg is a JSON string (sometimes backend returns Meta's raw error)
+        try {
+            const parsed = JSON.parse(rawMsg);
+            if (parsed.error && parsed.error.message) {
+                const metaErr = parsed.error;
+                if (metaErr.code === 190 || metaErr.error_subcode === 463 || metaErr.error_subcode === 467) {
+                    return "Your Meta Access Token has expired. Please generate a new one and update it in 'Official Configuration'.";
+                }
+                return metaErr.message;
+            }
+        } catch {
+            // Not JSON, continue
+        }
+
+        return rawMsg;
+    };
+
     const syncAndFetchTemplates = async () => {
         setLoading(true);
         setStatus(null);
@@ -71,10 +91,11 @@ export default function TemplatesPage() {
                     const count = syncResult.data?.count || 0;
                     setStatus({ type: 'info', text: `✅ Synced ${count} template(s) from Meta` });
                 } else {
-                    setStatus({ type: 'error', text: syncResult.error_message || "Sync failed — showing cached templates" });
+                    const msg = syncResult.error_message ? formatError({ response: { data: { error_message: syncResult.error_message } } }) : "Sync failed";
+                    setStatus({ type: 'error', text: `${msg} — showing cached templates` });
                 }
             } catch (syncErr: any) {
-                const errMsg = syncErr?.response?.data?.detail || syncErr?.message || "Sync failed";
+                const errMsg = formatError(syncErr);
                 // Don't block — show cached templates even if sync fails
                 setStatus({ type: 'error', text: `Sync error: ${errMsg}. Showing cached templates.` });
             }
@@ -109,11 +130,12 @@ export default function TemplatesPage() {
                 const data = await templatesService.getTemplates(token);
                 setTemplates(data);
             } else {
-                setStatus({ type: 'error', text: syncResult.error_message || "Sync failed" });
+                const msg = syncResult.error_message ? formatError({ response: { data: { error_message: syncResult.error_message } } }) : "Sync failed";
+                setStatus({ type: 'error', text: msg });
             }
         } catch (error: any) {
             console.error("Sync failed", error);
-            const errMsg = error?.response?.data?.detail || error?.message || "Unknown error";
+            const errMsg = formatError(error);
             setStatus({ type: 'error', text: `Sync failed: ${errMsg}` });
         } finally {
             setSyncing(false);

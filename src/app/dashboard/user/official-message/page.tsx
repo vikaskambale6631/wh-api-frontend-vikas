@@ -50,6 +50,25 @@ export default function OfficialMessagePage() {
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
     const [status, setStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const formatError = (error: any) => {
+        const rawMsg = error?.response?.data?.detail || error?.response?.data?.error_message || error?.message || "Unknown error";
+        
+        // Check if rawMsg is a JSON string (sometimes backend returns Meta's raw error)
+        try {
+            const parsed = JSON.parse(rawMsg);
+            if (parsed.error && parsed.error.message) {
+                const metaErr = parsed.error;
+                if (metaErr.code === 190 || metaErr.error_subcode === 463 || metaErr.error_subcode === 467) {
+                    return "Your Meta Access Token has expired. Please update it in 'Official Configuration'.";
+                }
+                return metaErr.message;
+            }
+        } catch {
+            // Not JSON, continue
+        }
+
+        return rawMsg;
+    };
 
     useEffect(() => {
         loadInitialData();
@@ -71,7 +90,7 @@ export default function OfficialMessagePage() {
 
         } catch (error) {
             console.error("Failed to load data:", error);
-            setStatus({ type: "error", text: "Failed to load initial data. Please refresh." });
+            setStatus({ type: "error", text: `Failed to load data: ${formatError(error)}` });
         } finally {
             setLoading(false);
         }
@@ -180,7 +199,7 @@ export default function OfficialMessagePage() {
                     if (result && !result.success) {
                         setStatus({
                             type: "error",
-                            text: result.error_message || result.message || "Failed to send media."
+                            text: result.error_message ? formatError({ response: { data: { error_message: result.error_message } } }) : (result.message || "Failed to send media.")
                         });
                         setSending(false);
                         return;
@@ -235,7 +254,7 @@ export default function OfficialMessagePage() {
             console.error(error);
             setStatus({
                 type: "error",
-                text: error.response?.data?.detail || error.message || "Failed to send message."
+                text: formatError(error)
             });
         } finally {
             setSending(false);
